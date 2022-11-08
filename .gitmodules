@@ -1,0 +1,3 @@
+[submodule "PromoterEnhancerListGenerator"]
+	path = PromoterEnhancerListGenerator
+	url = git@github.com:dakristia/PromoterEnhancerListGenerator.git
