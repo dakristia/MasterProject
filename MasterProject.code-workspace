@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.colorTheme": "Atom One Dark",
+		"workbench.preferredDarkColorTheme": "Atom One Dark"
+	}
+}
