@@ -58,7 +58,7 @@ ELS = "ELS"
 DATAFRAME_COLUMNS_INTERNAL = ["chrom", "enh_start", "enh_end", "prom_start", "prom_end", 
                             "enh_name", "prom_name", "bin1_start", "bin1_end", 
                             "bin2_start", "bin2_end", "modle_count", "micro-C_count"]
-DATAFRAME_COLUMNS_COOLER = ["chrom1", "start1", "end1", "chrom2" "start2", "end2", "count"]
+DATAFRAME_COLUMNS_COOLER = ["chrom1", "start1", "end1", "chrom2", "start2", "end2", "count"]
 DATAFRAME_COLUMNS_BED = ["chrom","chromStart","chromEnd","name","score","strand"
                         ,"thickStart","thickEnd","itemRgb","type","complete"]
 #DATAFRAME_COLUMNS_BED = ["chrom1", "start1",
@@ -68,7 +68,7 @@ DATAFRAME_COLUMNS_PLSELS = ["chrom", "p_name", "p_start",
 DATAFRAME_COLUMNS_PLSELS_OW = [
     "chrom", "regType", "regionname"] + DATAFRAME_COLUMNS_BED
 DATAFRAME_COLUMNS_BEDPE = ["chrom1", "start1", "end1", "chrom2",
-                           "start2", "end2", "name", "score", "strand1", "strand2"]
+                            "start2", "end2", "name", "score", "strand1", "strand2"]
 
 DATAFRAME_COLUMNS_STATISTICAL = ['distance','mincount','maxcount','averagecount','mediancount',
                                 'standarddeviation','totalcount','numberofcounts','allcounts']

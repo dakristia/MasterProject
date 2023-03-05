@@ -1,0 +1,161 @@
+# Config created by MoDLE-v1.0.0-rc.7 on 2023-02-20T07:54:48.344601902+00:00
+# High-performance stochastic modeling of DNA loop extrusion interactions.
+[simulate]
+# Simulate loop extrusion and write resulting molecular contacts in a .cool file.
+
+# IO Options
+# Options controlling MoDLE input, output and logs.
+
+# Path to file with chromosome sizes in chrom.sizes format.
+chrom-sizes="/input/hg38.chrom.sizes.trimmed"
+
+# Path to a file in BED6+ format with the genomic coordinates of extrusion barriers to be
+# simulated. The score field in a BED record should be a number between 0 and 1 and is
+# interpreted as the extrusion barrier occupancy for the extrusion barrier described
+# by the record.
+# Barriers mapping on chromosomes not listed in the chrom.sizes file passed through
+# the --chrom-sizes option are ignored.
+extrusion-barrier-file="/input/GRCh38_GM12878_barriers_RAD21_occupancy.bed"
+
+# Output prefix.
+# Can be an absolute or relative path including the file name but without the extension.
+# Example: running modle sim -o /tmp/my_simulation ... yields the following files:
+#          - /tmp/my_simulation.cool
+#          - /tmp/my_simulation.log
+#          - /tmp/my_simulation_config.toml
+output-prefix="/input/outfile_binsize1000_tcd10"
+
+# Extrusion Barriers and Factors Options
+# Options controlling how extrusion barrier and LEFs are simulated.
+
+# Contact generation Options
+# Options affecting contact sampling and registration.
+
+# Resolution in base-pairs for the output contact matrix in cooler format.
+# NOTE: MoDLE simulation always take place at 1 bp resolution.
+#       This parameter only affects the resolution of the output contact matrix.
+resolution=1000
+
+# Stopping criterion Options
+# Options defining the simulation stopping criterion.
+
+# Average contact density to be reached before the simulation is halted.
+# The target contact density applies independently to each chromosome.
+# Example: modle sim --chrom-sizes hg38.chr1.chrom.sizes \
+#                    --diagonal-width 3000000            \
+#                    --resolution 100000                 \
+#                    --target-contact-density 2
+#          Assuming chr1 is exactly 250 Mbp long, MoDLE will schedule simulation instances to yield
+#          a total of 150 000 contacts for chr1: 2 * (250e6 / 100e3) * (3e6 / 100e3) = 150e3.
+target-contact-density=10
+
+# Miscellaneous Options
+# 
+
+# Number of worker threads used to run simulation instances.
+# By default MoDLE will spawn a number of worker threads equal to the number of logical CPU
+# cores. On high core count machines a slightly better performance can usually be obtained
+# by setting --threads equal to the number of physical CPU cores.
+# 
+threads=8
+
+# Advanced Options
+# 
+
+# IO Options
+# Advanced options controlling MoDLE input, output and logs.
+
+# Extrusion Factors Options
+# Advanced options controlling how LEFs are simulated.
+
+# Extrusion Barriers Options
+# Advanced options controlling how extrusion are simulated.
+
+# Contact generation Options
+# Advanced options affecting contact sampling and registration.
+
+# Burn-in Options
+# Options defining the simulation stopping criterion.
+
+# Miscellaneous Options
+# 
+# TODO.
+
+# IO Options
+# Options controlling MoDLE input, output and logs.
+
+# Extrusion Barriers and Factors Options
+# Options controlling how extrusion barrier and LEFs are simulated.
+
+# Contact generation Options
+# Options affecting contact sampling and registration.
+
+# Stopping criterion Options
+# Options defining the simulation stopping criterion.
+
+# Miscellaneous Options
+# 
+
+# Advanced Options
+# 
+
+# IO Options
+# Advanced options controlling MoDLE input, output and logs.
+
+# Extrusion Factors Options
+# Advanced options controlling how LEFs are simulated.
+
+# Extrusion Barriers Options
+# Advanced options controlling how extrusion are simulated.
+
+# Contact generation Options
+# Advanced options affecting contact sampling and registration.
+
+# Burn-in Options
+# Options defining the simulation stopping criterion.
+
+# Miscellaneous Options
+# 
+
+# IO Options
+# Options controlling MoDLE input, output and logs.
+
+# Extrusion Barriers and Factors Options
+# Options controlling how extrusion barrier and LEFs are simulated.
+
+# Contact generation Options
+# Options affecting contact sampling and registration.
+
+# Stopping criterion Options
+# Options defining the simulation stopping criterion.
+
+# Miscellaneous Options
+# 
+
+# Advanced Options
+# 
+
+# IO Options
+# Advanced options controlling MoDLE input, output and logs.
+
+# Extrusion Factors Options
+# Advanced options controlling how LEFs are simulated.
+
+# Extrusion Barriers Options
+# Advanced options controlling how extrusion are simulated.
+
+# Contact generation Options
+# Advanced options affecting contact sampling and registration.
+
+# Burn-in Options
+# Options defining the simulation stopping criterion.
+
+# Miscellaneous Options
+# 
+
+# IO Options
+# Options controlling MoDLE input, output and logs.
+
+# Various Options
+# 
+

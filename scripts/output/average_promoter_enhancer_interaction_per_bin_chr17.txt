@@ -1,0 +1,2 @@
+[10:16:23]: Number of bins containing promoter and enhancer for chr17 at 50bp resolution: 1006275
+chr17 50

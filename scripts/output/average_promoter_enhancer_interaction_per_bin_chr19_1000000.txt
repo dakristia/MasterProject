@@ -1,0 +1,2 @@
+,chrom,resolution,total_bins_in_chrom,total_number_of_bins_with_promoter_and_enhancer,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+0,chr19,1000000,3481,1,309,309,0.08876759551852915,309.0,0.0,309,[309],[[0 0]]
