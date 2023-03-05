@@ -35,13 +35,10 @@ def main():
     #calculate_statistics()
     #generate_plots1()
     #placeholder()
-    
-    test_prediction_of_promoter_enhancer()
+
 
     #print('RAM memory % used:', psutil.virtual_memory())
 
-
-    exit()
     test_dataframes()
 
     pass
