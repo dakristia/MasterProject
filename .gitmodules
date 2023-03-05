@@ -1,6 +1,0 @@
-[submodule "PromoterEnhancerListGenerator"]
-	path = PromoterEnhancerListGenerator
-	url = git@github.com:dakristia/PromoterEnhancerListGenerator.git
-[submodule "Plotter"]
-	path = Plotter
-	url = git@github.com:dakristia/Plotter.git
