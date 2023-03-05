@@ -85,6 +85,8 @@ def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
 
         save_dataframe(summary_dataframe,output_folder+"predicted_chromosome_stats_global.csv")
 
+        
+
 
 
 def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
