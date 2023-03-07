@@ -5,12 +5,16 @@ def main():
     #calculate_average_contact_density_memory_issue()
     calculate_average_contact_density()
 
-def calculate_average_contact_density(cooler_file_name = "H1-hESC.mcool::/resolutions/5000",
+def calculate_average_contact_density(cooler_file_name = "H1-hESC.mcool::/resolutions/1000",
                             diagonal_width = 3_000_000):
-    #cooler_file_name = "outfile_binsize1000_tcd10.cool"
+    cooler_file_name = "outfile_binsize5000_tcd7.31.cool"
     cooler_file_path = input_folder + cooler_file_name
 
+    
+
     cooler_obj = cooler.Cooler(cooler_file_path)
+    print(cooler_file_name)
+    print(cooler_obj)
     chrom_names = cooler_obj.chromnames
     resolution = cooler_obj.binsize
     diagonal_bin_width = diagonal_width // resolution
