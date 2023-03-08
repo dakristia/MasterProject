@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import PromoterEnhancerListGenerator as pelg
 import Plotter as plotter
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 import cooler
 import time
 import math
@@ -28,7 +28,7 @@ temp_files = "./temp/"
 def main():
     #test_prediction_of_promoter_enhancer()
     predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions()
-
+    
 
 def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
     max_workers = 20
@@ -96,12 +96,13 @@ def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
                                     chrom_name : str,
                                     chrom_size : str,
                                     resolution : int,
-                                    out_file_name : str = False):    
+                                    out_file_name : str = False,):    
 
     print(f"Calculating promoter/enhancer bins in {chrom_name}, res {resolution}")
 
     number_of_rows = number_of_columns = math.ceil(chrom_size / resolution)
     number_of_bins = number_of_rows * number_of_columns
+
     matrix_shape = (number_of_columns, number_of_rows)
 
     
@@ -113,9 +114,39 @@ def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
     promoter_dataframe.sort_values(by=['chromStart','chromEnd'])
     enhancer_dataframe.sort_values(by=['chromStart','chromEnd'])
 
-    # Numpy array to contain coordinates we have currently found
-    coordinate_np = np.empty(shape=(0,2), dtype=int)
-    counter_np = np.empty(shape=0,dtype=np.uint)
+    
+    if   number_of_rows >= 4_294_967_295:
+        print("Using np.uint64 as coordinate datatype. This should never happen, because no chromosome is big enough. What are you doing?")
+        coordinate_np_type = np.uint64
+    elif number_of_rows >= 65_535:
+        print("Using np.uint32 as coordinate datatype.")
+        coordinate_np_type = np.uint32
+    else:
+        print("Using np.uint16 as coordinate datatype.")
+        coordinate_np_type = np.uint16
+
+    # 
+    counter_np_type = np.uint16
+    coordinate_np_type = np.uint16
+    # If resolution is high, we can expect smaller counts per pixel. Change datatype to save space.
+    # if resolution < 500:
+    #     counter_np_type = np.uint32
+
+    numpy_array_start_size = 10_000
+    # More effecient to preallocate numpy array. 
+    # Create numpy arrays with 10_000. Reshape later if needed
+    # Numpy array to contain coordinates of regulatory bins
+    coordinate_np = np.empty(shape=(numpy_array_start_size,2), dtype = coordinate_np_type)
+    # new_rows = np.empty((numpy_array_start_size, coordinate_np.shape[1]), dtype=coordinate_np_type)
+    # coordinate_np = np.vstack((coordinate_np, new_rows))
+    # print(coordinate_np)
+    # print(coordinate_np.shape)
+    #exit()
+    #coordinate_np = np.append(coordinate_np, np.empty((numpy_array_start_size, 2), dtype=coordinate_np_type), axis=1)
+    # Numpy array to contain the raw contacts of regulatory bins at same index in coordiante_np
+    counter_np = np.empty(shape=numpy_array_start_size,dtype=np.uint) # Use unsigned int, as this number can get quite large
+    # Index counter indicating where to add data
+    current_numpy_index = 0
 
     for prom_row in promoter_dataframe.itertuples():
         prom_start = prom_row[2]; 
@@ -154,8 +185,8 @@ def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
                     enh_bin = enh_start + eb * resolution
 
                     # Find the indexes of the bins
-                    prom_index = prom_bin // resolution
-                    enh_index = enh_bin // resolution
+                    prom_index = prom_bin // resolution 
+                    enh_index = enh_bin // resolution 
 
                     # Because the matrix is a two dimensional contact matrix, each of the two triangles
                     # that make up the matrix (if we split along the diagonal) are flipped duplicates of
@@ -167,40 +198,60 @@ def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
                         indexes = [enh_index, prom_index]
 
                     # Convert to numpy array before comparison to avoid runtimewarning: invalid value encountered in long_scalars
-                    indexes = np.array(indexes)
-                    coordiante_index = False
+                    indexes = np.array(indexes,dtype=coordinate_np_type)
+                    coordinate_index = False
                     for i, e in enumerate(coordinate_np):
                         if np.all(e == indexes):
-                            coordiante_index = i
+                            coordinate_index = i
                             break;
 
-                    if coordiante_index:
-                        counter_np[coordiante_index] = counter_np[coordiante_index] + 1
+                    if coordinate_index:
+                        # If coordinate already exists in array, simply update the counter for the coordinate
+                        counter_np[coordinate_index] = counter_np[coordinate_index] + 1
                     else:
-                        coordinate_np = np.append(coordinate_np,np.array([indexes]),axis=0)
-                        counter_np = np.append(counter_np,1)
+                        if current_numpy_index >=  counter_np.size:
+
+                            new_rows = np.empty((numpy_array_start_size), dtype=counter_np_type)
+                            counter_np = np.append(counter_np, new_rows)
+
+
+                            new_rows = np.empty((numpy_array_start_size, coordinate_np.shape[1]), dtype=coordinate_np_type)
+                            coordinate_np = np.vstack((coordinate_np, new_rows))
+                        # Add values to numpy arrays
+
+                        coordinate_np[current_numpy_index][0] = indexes[0]
+                        coordinate_np[current_numpy_index][1] = indexes[1]
+                        counter_np[current_numpy_index] = 1
+                        
+                        # Increment index by one 
+                        current_numpy_index += 1
+
+                        
+                        #coordinate_np = np.append(coordinate_np,np.array([indexes]),axis=0)
+                        #counter_np = np.append(counter_np,1)
 
     try:
-        total_bins_with_pls_and_els = len(counter_np)
-        summed_counters = np.sum(counter_np,dtype=np.uint)
-        if summed_counters == 0 or total_bins_with_pls_and_els == 0 or number_of_bins == 0:
-            print("summed_counters",summed_counters,"total_bins_with_pls_and_els",total_bins_with_pls_and_els,"number_of_bins",number_of_bins, "chrom_name",chrom_name, "resolution",resolution)
-        average_pls_els_per_bin = summed_counters / number_of_bins
-        average_non_zero = summed_counters / total_bins_with_pls_and_els
-        number_of_bins_with_promoter_enhancer_bin = len(coordinate_np)
+        # Resize coordinate_np and counter_np to save memory. New size: current_numpy_index 
+        coordinate_np = coordinate_np[:current_numpy_index]
+        counter_np = counter_np[:current_numpy_index]
+        total_bins_with_regulatory_interaction = len(counter_np)
+
+
+        summed_count = np.sum(counter_np,dtype=np.uint)
+        min_count = np.min(counter_np)
+        max_count = np.min(counter_np)
+        median_count = np.median(counter_np)
+        std_count = np.std(counter_np)
+        average_non_zero = summed_count / total_bins_with_regulatory_interaction
+        average_regulatory_count_per_bin_total = summed_count / number_of_bins
+
     except RuntimeWarning:
         print("Runtimewarning in:", chrom_name, resolution )
     
-    #! TODO: SAVE TO DATAFRAME WITH COLUMNS 
-    #! [CHROMOSOME, RESOLUTION, TOTAL_BINS_IN_CHROM, TOTAL_BINS_WITH_PROMOTER_ENHANCER, MIN_COUNT, MAX_COUNT, AVERAGE_COUNT, MEDIAN_COUNT
-    #! STANDARDDEVIATION, TOTALCOUNT, LIST_OF_COUNTS, LIST_OF_INDEXES]
-    #append_text_to_file(f'Number of bins containing promoter and enhancer for {chrom_name} at {resolution}bp resolution: {len(coordinate_np)}\n{chrom_name} {resolution}',
-    #                    f'./output/average_promoter_enhancer_interaction_per_bin_{chrom_name}_{resolution}.txt')
-    # Make dictionary with collected data
     dictionary = {'chrom':[chrom_name],'resolution':[resolution],'total_bins_in_chrom':[number_of_bins],
-                'total_bins_with_pls_and_els':[total_bins_with_pls_and_els],
-                'min_count':[np.min(counter_np)],'max_count':[np.max(counter_np)],'average_count':[average_pls_els_per_bin],
-                'median_count':[np.median(counter_np)],'standarddeviation':[np.std(counter_np)],'total_count':[np.sum(counter_np)],
+                'total_bins_with_pls_and_els':[total_bins_with_regulatory_interaction],
+                'min_count':[min_count],'max_count':[max_count],'average_count':[average_regulatory_count_per_bin_total],
+                'median_count':[median_count],'standarddeviation':[std_count],'total_count':[summed_count],
                 'list_of_counts':[counter_np],'list_of_indexes':[coordinate_np]}
     
     # Convert dict to dataframe
@@ -210,7 +261,7 @@ def calculate_promoter_enhancer_bins(promoter_dataframe : pd.DataFrame,
         out_file_name = f'./output/predicted_chromosome_data_{chrom_name}_{resolution}.csv'
 
     save_dataframe( dataframe=dataframe,
-                    filename=f'./output/predicted_chromosome_data_{chrom_name}_{resolution}.csv')
+                    filepath=out_file_name)
     
     print(f"RETURNING promoter/enhancer bins in {chrom_name}, res {resolution}")
     return dataframe

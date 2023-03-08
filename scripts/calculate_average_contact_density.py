@@ -138,12 +138,12 @@ def calculate_average_contact_density(cooler_file_name = "H1-hESC.mcool::/resolu
 
         print(len(uniq))
 
-    chr_wide_average_on_diagonal = 0
+    genome_wide_average_on_diagonal = 0
     for val in contact_density_dict.values():
-        chr_wide_average_on_diagonal += val
-    
-    chr_wide_average_on_diagonal = chr_wide_average_on_diagonal / len(contact_density_dict.values())
-    contact_density_dict['chr_wide'] = chr_wide_average_on_diagonal
+        genome_wide_average_on_diagonal += val
+    genome_wide_average_on_diagonal = genome_wide_average_on_diagonal / len(contact_density_dict.values())
+
+    contact_density_dict['genome_wide'] = genome_wide_average_on_diagonal
 
     print(contact_density_dict)
 
