@@ -11,6 +11,9 @@ def test_dataframes(cooler_file_name = "outfile_binsize5000_tcd7.31.cool",
                     end : int = False,
                     max_distance : int = 3_000_000):
     
+    start = 0
+    end = 10_000_000
+
     cooler_file_path = input_folder + cooler_file_name
     bed_file_path = input_folder + bed_file_name
 
