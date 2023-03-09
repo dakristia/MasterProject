@@ -3,24 +3,25 @@ from generate_plots import *
 def calculate_statistics_of_one_dataset(chrom_name = "chr19",
                             bed_file_name = "2022-11-07_cisRegElements_ENCFF573NKX_ENCFF760NUN_ENCFF919FBG_ENCFF332TNJ_grepped.7group.bed", 
                             cooler_file_name = "outfile_binsize1000_tcd5.cool",
-                            start = "400_000",
-                            end = "1_000_000",
+                            start = False,
+                            end = False,
                             csv_target_file_path=False):
     
     start_time = time.time()
     print("Starting function 'calculate_statistics_of_one_dataset'...")
-    coolerplotter = plotter.CoolerPlotter()
+    #coolerplotter = plotter.CoolerPlotter()
 
     bed_file_path = input_folder + bed_file_name
     cooler_file_path = input_folder + cooler_file_name
-    cooler_numpyfilename = cooler_file_name + '.npy'
+
+    cooler_matrix_numpyfilename = cooler_file_name + '.npy'
     cooler_distancematrix_numpyfilename = cooler_file_name + '.distancematrix.npy'
     
-    # Acquire resolution
-    c = cooler.Cooler(cooler_file_path)
-    resolution = int(c.info["bin-size"])
+    # # Acquire resolution
+    # c = cooler.Cooler(cooler_file_path)
+    # resolution = int(c.info["bin-size"])
 
-    returnmatrix = load_or_create_matrix(re_matrix_filename = cooler_numpyfilename, 
+    returnmatrix = load_or_create_matrix(re_matrix_filename = cooler_matrix_numpyfilename, 
                     re_distance_matrix_filename=cooler_distancematrix_numpyfilename,
                     chrom_name="chr19",
                     scale = 5000,
@@ -69,8 +70,13 @@ def calculate_statistics_of_one_dataset(chrom_name = "chr19",
 
     end_time = time.time() - start_time
 
-    columns = ["chrom","resolution","pe_total_count","pe_mean_count","pe_std_count","pe_median_count",
+    #columns = ["chrom","resolution","pe_total_count","pe_mean_count","pe_std_count","pe_median_count",
                 "pe_min_count","pe_max_count","pe_total_bins","chr_total_bins","pe_bin_frequency","nonpe_bin_frequency"]
+
+    dictionary = {"chrom":np.array([]),"resolution":np.array([]),"pe_total_count":np.array([]),"pe_mean_count":np.array([]),"pe_std_count":np.array([]),
+                "pe_median_count":np.array([]),"pe_min_count":np.array([]), "pe_max_count":np.array([]),"pe_total_bins":np.array([]),"chr_total_bins":np.array([]),
+                "pe_bin_frequency":np.array([]),"nonpe_bin_frequency":np.array([])}
+    
 
 
     # dictionary = {'chrom':[chrom_name],'resolution':[resolution],'total_bins_in_chrom':[number_of_bins],

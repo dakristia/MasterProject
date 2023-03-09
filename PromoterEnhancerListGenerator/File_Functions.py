@@ -1,5 +1,4 @@
 from Constants import *
-from numba import njit
 import re  # Regular Expressions
 import cooler  # type:ignore
 import pandas as pd  # type:ignore
@@ -8,7 +7,7 @@ import numpy as np
 import subprocess
 
 
-
+#! Unfinished
 def grep_bed(filename: str):
     bashcommand = ["echo","'PLS\|ELS'", filename]
     print(bashcommand)
@@ -45,15 +44,12 @@ def read_Gtfile(filename: str) -> list:
 
     return gtfContent
 
+
+#! Is this necessary as its own function? 
 def read_mcool_file(mcool_file_path: str):
     modle_cool: cooler.api.Cooler = cooler.Cooler(mcool_file_path)
-    print(modle_cool)
-    print(modle_cool.chromnames)
 
     return modle_cool
-    #print(modle_cool.matrix().fetch("chr19"))
-    #TODO first manually compare this data to the stuff produced by modle
-    #TODO we need to focus on a particular region. Any regions which aren't noted by modle are irrelevant
 
 def read_cool_file(cooler_file_path: str) -> tuple:
     """Reads the info in a .cool file and prints it to the terminal. 
@@ -87,6 +83,10 @@ def read_cool_file(cooler_file_path: str) -> tuple:
 def extract_pls_els_from_bed(bed_file_name: str) -> pd.core.frame.DataFrame:
     print("Creating dataframe with promoters and enhancers from .bed file")
     df : pd.core.frame.DataFrame = pd.read_csv(bed_file_name, delim_whitespace=True, header = None, names = DATAFRAME_COLUMNS_BED)
+    type_index = DATAFRAME_COLUMNS_BED.index("type")
+    pls_dataframe = df.loc[df[DATAFRAME_COLUMNS_BED[type_index]].str.contains("PLS")]
+    els_dataframe = df.loc[df[DATAFRAME_COLUMNS_BED[type_index]].str.contains("ELS")]
+    df = pd.concat([pls_dataframe,els_dataframe],ignore_index=True).drop_duplicates().sort_values(by=['chrom','chromStart','chromEnd'])
     return df
 
 

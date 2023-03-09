@@ -729,13 +729,13 @@ def load_or_create_matrix(raw_matrix_filename : str = False,
             if re_dataframe_filepath: 
                 loaded_dataframe = load_dataframe(re_dataframe_filepath)    
                 if not isinstance(loaded_dataframe,pd.DataFrame):    
-                    re_dataframe = pelg.Dataframe_Functions.create_regElem_df_of_cool(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
+                    re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
                     if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
                     if cache_dataframe and re_dataframe_filepath: save_dataframe(re_dataframe,re_dataframe_filepath)
                 else:
                     re_dataframe = loaded_dataframe
             else:
-                re_dataframe = pelg.Dataframe_Functions.create_regElem_df_of_cool(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
+                re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
                 if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
             
             re_matrix = coolerplotter.dataframe_to_matrix(re_dataframe)
@@ -776,7 +776,7 @@ def load_or_create_matrix(raw_matrix_filename : str = False,
             #if missing_param(end, f'{end=}'.split('=')[0]): return False;  
             if missing_param(cooler_file_path, f'{cooler_file_path=}'.split('=')[0]): return False;   
             if missing_param(bed_file_path, f'{bed_file_path=}'.split('=')[0]): return False; 
-            if not isinstance(re_dataframe,pd.DataFrame): re_dataframe = pelg.Dataframe_Functions.create_regElem_df_of_cool(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
+            if not isinstance(re_dataframe,pd.DataFrame): re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
 
             re_distance_dataframe = pelg.Dataframe_Functions.create_distance_dataframe(re_dataframe)
             re_distance_dataframe_expanded = pelg.Dataframe_Functions.expand_distance_dataframe(re_distance_dataframe)
@@ -874,7 +874,7 @@ def load_or_create_dataframe(raw_dataframe_filepath : str  = False,
             if missing_param(end, f'{end=}'.split('=')[0]): return False;  
             if missing_param(cooler_file_path, f'{cooler_file_path=}'.split('=')[0]): return False;   
             if missing_param(bed_file_path, f'{bed_file_path=}'.split('=')[0]): return False; 
-            re_dataframe = pelg.Dataframe_Functions.create_regElem_df_of_cool(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
+            re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
             if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
             save_dataframe(re_dataframe, re_dataframe_filepath)
         returned_dataframes.append(re_dataframe)
@@ -909,7 +909,7 @@ def load_or_create_dataframe(raw_dataframe_filepath : str  = False,
                 if missing_param(chrom_name, f'{chrom_name=}'.split('=')[0]): return False;  
                 if missing_param(start, f'{start=}'.split('=')[0]): return False;  
                 if missing_param(end, f'{end=}'.split('=')[0]): return False; 
-                re_dataframe = pelg.Dataframe_Functions.create_regElem_df_of_cool(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
+                re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
                 if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
             re_distance_dataframe = pelg.Dataframe_Functions.create_distance_dataframe(re_dataframe)
             re_distance_dataframe = pelg.Dataframe_Functions.expand_distance_dataframe(re_distance_dataframe)

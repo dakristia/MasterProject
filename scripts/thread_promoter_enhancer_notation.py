@@ -1,13 +1,14 @@
 from generate_plots import *
 
 
+def main():
+    test_dataframes()
 
-
-def test_dataframes(cooler_file_name = "outfile_binsize1000_tcd5.cool",
-                    bed_file_name = "2022-11-07_cisRegElements_ENCFF573NKX_ENCFF760NUN_ENCFF919FBG_ENCFF332TNJ_grepped.7group.bed",
+def test_dataframes(cooler_file_name = "outfile_binsize5000_tcd7.31.cool",
+                    bed_file_name = "H1-hESC.7group.bed",
                     chrom_name = "chr19",
-                    start : int = 0,
-                    end : int = 10_000_000,
+                    start : int = False,
+                    end : int = False,
                     max_distance : int = 3_000_000):
     
     cooler_file_path = input_folder + cooler_file_name
@@ -16,11 +17,10 @@ def test_dataframes(cooler_file_name = "outfile_binsize1000_tcd5.cool",
     ## * Threaded run
 
     start_time = time.time()
-    promoter_enhancer_dataframe = pelg.extract_pls_els_from_bed(bed_file_path)
-    
+
     re_interaction_dataframe : pd.DataFrame = pelg.note_promoter_enhancer_interactions_threaded(
         cooler_file_path = cooler_file_path,
-        promoter_enhancer_dataframe = promoter_enhancer_dataframe,
+        bed_file_path=bed_file_path,
         chrom_name = chrom_name,
         start = start,
         end = end,
@@ -31,10 +31,10 @@ def test_dataframes(cooler_file_name = "outfile_binsize1000_tcd5.cool",
     save_dataframe(re_interaction_dataframe, "threaded_dataframe_test1.csv")
     end_time = time.time() - start_time
     print()
-    append_text_to_file(f"Total time for threaded noting: {end_time}",logfile_name_threaded_dataframes)
+    append_text_to_file(f"Total time for threaded noting: {end_time} seconds",logfile_name_threaded_dataframes)
 
     start_time = time.time()
-    re_interaction_dataframe_old : pd.DataFrame = pelg.create_regElem_df_of_cool(
+    re_interaction_dataframe_old : pd.DataFrame = pelg.filter_cooler_to_regelement_dataframe(
         cool_file_path=cooler_file_path,
         bed_file_path=bed_file_path,
         chrom_name=chrom_name,
@@ -42,6 +42,24 @@ def test_dataframes(cooler_file_name = "outfile_binsize1000_tcd5.cool",
         end=end,
         resolution=5000
     )
+    re_interaction_dataframe_old
     save_dataframe(re_interaction_dataframe_old, "unthreaded_dataframe_test1.csv")
     end_time = time.time() - start_time
-    append_text_to_file(f"Total time for NON-threaded noting: {end_time}",logfile_name_threaded_dataframes)
+    append_text_to_file(f"Total time for NON-threaded noting: {end_time} seconds",logfile_name_threaded_dataframes)
+
+    append_text_to_file(f"Length of threaded dataframe: {len(re_interaction_dataframe)}",logfile_name_threaded_dataframes)
+    append_text_to_file(f"Length of NON-threaded dataframe: {len(re_interaction_dataframe_old)}",logfile_name_threaded_dataframes)
+
+    print(re_interaction_dataframe)
+    print(re_interaction_dataframe_old)    
+    re_interaction_dataframe_old
+
+
+
+    duplicates = pd.concat([re_interaction_dataframe,re_interaction_dataframe_old]).duplicated(keep="last")
+
+    append_text_to_file(f"Duplicates present in dataframes: {len(duplicates)}. \n{duplicates}",logfile_name_threaded_dataframes)
+
+
+if __name__ == "__main__":
+    main()
