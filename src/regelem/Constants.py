@@ -5,7 +5,9 @@
 # FILE_EXTRUSION_BARRIER = FILE_PATH_IN + 'GRCh38_GM12878_barriers_RAD21_occupancy.bed'
 # FILE_GENE_ANNOTATION = FILE_PATH_IN + 'hg38.refGene.gtf'
 
-FILE_PATH_OUT = './data/output/output.bedpe'
+#FILE_PATH_OUT = './data/output/output.bedpe'
+OUTPUT_FOLDER = 'output_folder/'
+INPUT_FOLDER = ''
 
 OBLIGATORY_ARGUMENT_AMOUNT = 4
 

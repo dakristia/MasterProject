@@ -1,5 +1,22 @@
 from generate_plots import *
 
+def calculate_average_counte_per_regelem_bin(dataframe : pd.DataFrame):
+
+    ["chrom", "enh_start", "enh_end", "prom_start", "prom_end", 
+    "enh_name", "prom_name", "bin1_start", "bin1_end", 
+    "bin2_start", "bin2_end", "modle_count", "micro-C_count"]
+
+    dictionary = {"chrom","total_bins_with_pls_and_els","min_count","max_count"
+                ,"average_count","median_count","standarddeviation","total_count"}
+
+    unique_prom_starts = np.array(pd.unique(dataframe["bin2_start"]))
+    unique_enh_starts = np.array(pd.unique(dataframe["bin1_start"]))
+
+    print(dataframe)
+    print(unique_prom_starts)
+    print(unique_enh_starts)
+
+
 def calculate_statistics_of_one_dataset(chrom_name = "chr19",
                             bed_file_name = "2022-11-07_cisRegElements_ENCFF573NKX_ENCFF760NUN_ENCFF919FBG_ENCFF332TNJ_grepped.7group.bed", 
                             cooler_file_name = "outfile_binsize1000_tcd5.cool",
@@ -16,10 +33,6 @@ def calculate_statistics_of_one_dataset(chrom_name = "chr19",
 
     cooler_matrix_numpyfilename = cooler_file_name + '.npy'
     cooler_distancematrix_numpyfilename = cooler_file_name + '.distancematrix.npy'
-    
-    # # Acquire resolution
-    # c = cooler.Cooler(cooler_file_path)
-    # resolution = int(c.info["bin-size"])
 
     returnmatrix = load_or_create_matrix(re_matrix_filename = cooler_matrix_numpyfilename, 
                     re_distance_matrix_filename=cooler_distancematrix_numpyfilename,
@@ -71,7 +84,7 @@ def calculate_statistics_of_one_dataset(chrom_name = "chr19",
     end_time = time.time() - start_time
 
     #columns = ["chrom","resolution","pe_total_count","pe_mean_count","pe_std_count","pe_median_count",
-                "pe_min_count","pe_max_count","pe_total_bins","chr_total_bins","pe_bin_frequency","nonpe_bin_frequency"]
+                # "pe_min_count","pe_max_count","pe_total_bins","chr_total_bins","pe_bin_frequency","nonpe_bin_frequency"]
 
     dictionary = {"chrom":np.array([]),"resolution":np.array([]),"pe_total_count":np.array([]),"pe_mean_count":np.array([]),"pe_std_count":np.array([]),
                 "pe_median_count":np.array([]),"pe_min_count":np.array([]), "pe_max_count":np.array([]),"pe_total_bins":np.array([]),"chr_total_bins":np.array([]),

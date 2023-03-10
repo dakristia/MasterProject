@@ -3,6 +3,8 @@ import cooler
 
 def main():
     #calculate_average_contact_density_memory_issue()
+
+
     calculate_average_contact_density(cooler_file_path=input_folder + "H1-hESC.mcool::/resolutions/50000")
 
 def calculate_average_contact_density(cooler_file_path : str,
@@ -33,14 +35,12 @@ def calculate_average_contact_density(cooler_file_path : str,
 
     for chrom_name in chrom_names:
 
-        
-
         chrom_size = cooler_obj.chromsizes[chrom_name]
 
         fetch_start = 0
-        # Fetch twice the size of the diagonal width. 
-        # This is small enough to fit in memory, and big enough to ensure we don't lose any pixels, as long as we do 
-        # some overlap with the next fetch. 
+        # * Fetch twice the size of the diagonal width. 
+        # * This is small enough to fit in memory, and big enough to ensure we don't lose any pixels, as long as we do 
+        # * some overlap with the next fetch. 
         fetch_end = diagonal_width + diagonal_width
 
         matrix = cooler_obj.matrix(balance=False).fetch(f'{chrom_name}:{fetch_start}-{fetch_end}')
@@ -116,74 +116,6 @@ def calculate_average_contact_density(cooler_file_path : str,
     print(contact_density_dict)
 
     return contact_density_dict
-
-def calculate_average_contact_density_memory_issue(chrom_name = "chr19",
-                            cooler_file_name = "H1-hESC.mcool::/resolutions/5000",
-                            diagonal_width = 3_000_000):
-    """Deprecated. Do not use.
-
-    Args:
-        chrom_name (str, optional): _description_. Defaults to "chr19".
-        cooler_file_name (str, optional): _description_. Defaults to "H1-hESC.mcool::/resolutions/5000".
-        diagonal_width (_type_, optional): _description_. Defaults to 3_000_000.
-    """
-    # cooler_file_name = "outfile_binsize1000_tcd10.cool"
-    cooler_file_path = input_folder + cooler_file_name
-
-
-    cooler_obj = cooler.Cooler(cooler_file_path)
-    resolution = cooler_obj.binsize
-    chrom_size = cooler_obj.chromsizes[chrom_name]
-    print("size of chrom",chrom_size)
-    diagonal_bin_width = diagonal_width / resolution
-
-    selector = cooler_obj.matrix(balance=False, as_pixels=True, join=True)
-    dataframe = selector.fetch(chrom_name)
-
-    #matrix = cooler_obj.matrix(balance=True)[:]
-    print(dataframe)
-    length_of_one_row =  chrom_size // resolution
-    total_bins_in_chrom = length_of_one_row * length_of_one_row
-    len_of_dataframe = len(dataframe)
-
-    print("resolution",resolution)
-    print("len_of_dataframe:",len_of_dataframe)
-    print("total_bins_in_chrom:",total_bins_in_chrom)
-
-    (chrom_size / resolution) * (diagonal_width / resolution)
-
-    
-    total_contacts = 0
-    nonzero_bins = 0
-    for row in dataframe.itertuples():
-        bin_1_end = row[3]
-        bin_2_start = row[5]
-        bin_count = row[7]
-
-        if abs(bin_1_end - bin_2_start) > diagonal_width: 
-            print(bin_1_end,bin_2_start)
-            continue
-
-        total_contacts += bin_count
-        nonzero_bins += 1
-
-    end_bin = chrom_size // resolution
-    diagonal_bin_width = diagonal_width / resolution
-    print(diagonal_bin_width)
-
-    bins_on_diagonal = 0
-
-    for i in range(end_bin + 1):
-        # Add row and column less than diagonal_bin_width away from coordinate. 
-        bins_on_row_or_column = diagonal_bin_width
-        # Make sure we dont go beyond the end of the matrix
-        if i + diagonal_bin_width > end_bin: bins_on_row_or_column = end_bin - i
-
-        # Make sure we keep point on diagonal
-        bins_on_diagonal += bins_on_row_or_column + 1
-
-    print("bins_on_diagonal:",bins_on_diagonal)
-    print(f"average of bins on diagonal:{total_contacts / bins_on_diagonal}")
 
 if __name__ == "__main__":
     main()

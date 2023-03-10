@@ -80,15 +80,6 @@ def read_cool_file(cooler_file_path: str) -> tuple:
     return (modle_cool, cooler_2Dselector)
 
 
-def extract_pls_els_from_bed(bed_file_name: str) -> pd.core.frame.DataFrame:
-    print("Creating dataframe with promoters and enhancers from .bed file")
-    df : pd.core.frame.DataFrame = pd.read_csv(bed_file_name, delim_whitespace=True, header = None, names = DATAFRAME_COLUMNS_BED)
-    type_index = DATAFRAME_COLUMNS_BED.index("type")
-    pls_dataframe = df.loc[df[DATAFRAME_COLUMNS_BED[type_index]].str.contains("PLS")]
-    els_dataframe = df.loc[df[DATAFRAME_COLUMNS_BED[type_index]].str.contains("ELS")]
-    df = pd.concat([pls_dataframe,els_dataframe],ignore_index=True).drop_duplicates().sort_values(by=['chrom','chromStart','chromEnd'])
-    return df
-
 
 def extract_Extrusion_Barrier_From_Bed(bedList: list) -> dict:
     """Extract a dict of all lines from a bedFile

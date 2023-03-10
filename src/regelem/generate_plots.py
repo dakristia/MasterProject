@@ -638,19 +638,7 @@ def compare_tcd_plots(chrom_name = "chr19",
         print(f"Correlation coefficient between re matrix {row+1} and re valid matrix: {corr_coeff_valid}")
 
 
-def save_matrix(matrix : np.ndarray, filename : str):
-    print("Saving matrix to:", filename)
-    np.save(filename, matrix)
 
-def load_matrix(filename: str):
-    try:
-        print("Retrieving matrix from:", filename)
-        matrix = np.load(filename,allow_pickle=True) #! allow_pickle is a security issue
-        print("Successfully loaded matrix from:", filename)
-        return matrix 
-    except OSError:
-        print("Failed to load matrix from:",filename)
-        return False
 
 def load_or_create_matrix(raw_matrix_filename : str = False,
                     re_matrix_filename : str = False, 
@@ -699,14 +687,14 @@ def load_or_create_matrix(raw_matrix_filename : str = False,
                 if not isinstance(loaded_dataframe,pd.DataFrame):
                     if start and end: raw_dataframe = selector.fetch((chrom_name,start,end))
                     else: raw_dataframe = selector.fetch((chrom_name))
-                    if scale: raw_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(raw_dataframe,target_resolution = scale)
+                    if scale: raw_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(raw_dataframe,target_resolution = scale)
                     if cache_dataframe and raw_dataframe_filepath: save_dataframe(raw_dataframe,raw_dataframe_filepath)
                 else: 
                     raw_dataframe = load_dataframe
             else:
                 if start and end: raw_dataframe = selector.fetch((chrom_name,start,end))
                 else: raw_dataframe = selector.fetch((chrom_name))
-                if scale: raw_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(raw_dataframe,target_resolution = scale)
+                if scale: raw_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(raw_dataframe,target_resolution = scale)
             
             raw_matrix = coolerplotter.dataframe_to_matrix(raw_dataframe)
             save_matrix(raw_matrix, raw_matrix_filename)
@@ -730,13 +718,13 @@ def load_or_create_matrix(raw_matrix_filename : str = False,
                 loaded_dataframe = load_dataframe(re_dataframe_filepath)    
                 if not isinstance(loaded_dataframe,pd.DataFrame):    
                     re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
-                    if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
+                    if scale: re_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(re_dataframe,target_resolution = scale)
                     if cache_dataframe and re_dataframe_filepath: save_dataframe(re_dataframe,re_dataframe_filepath)
                 else:
                     re_dataframe = loaded_dataframe
             else:
                 re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
-                if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
+                if scale: re_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(re_dataframe,target_resolution = scale)
             
             re_matrix = coolerplotter.dataframe_to_matrix(re_dataframe)
             save_matrix(re_matrix, re_matrix_filename)
@@ -790,24 +778,7 @@ def load_or_create_matrix(raw_matrix_filename : str = False,
 
     return return_matrices
 
-def save_dataframe(dataframe : pd.DataFrame, filepath : str):
-    print("Saving dataframe to filename:", filepath)
-    returned = dataframe.to_csv(filepath)
-    
-    # Check if file saved successfully
-    check_if_saved = os.path.isfile(filepath)
-    if not check_if_saved:
-        print(f'Failed to save dataframe to file: {filepath} \n{dataframe}')
 
-def load_dataframe(filepath : str):
-    try:
-        print("Retrieving dataframe from:", filepath)
-        dataframe = pd.read_csv(filepath)
-        print("Successfully loaded dataframe from:", filepath)
-        return dataframe
-    except FileNotFoundError:
-        print("Failed to load dataframe from:", filepath)
-        return False
 
 def load_or_create_dataframe(raw_dataframe_filepath : str  = False, 
                             re_dataframe_filepath : str  = False, 
@@ -860,7 +831,7 @@ def load_or_create_dataframe(raw_dataframe_filepath : str  = False,
             if missing_param(bed_file_path, f'{bed_file_path=}'.split('=')[0]): return False; 
             if start and end: raw_dataframe = selector.fetch((chrom_name,start,end))
             else: raw_dataframe = selector.fetch((chrom_name))
-            if scale: raw_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(raw_dataframe,target_resolution = scale)
+            if scale: raw_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(raw_dataframe,target_resolution = scale)
             save_dataframe(raw_dataframe, raw_dataframe_filepath)
         returned_dataframes.append(raw_dataframe)
 
@@ -875,7 +846,7 @@ def load_or_create_dataframe(raw_dataframe_filepath : str  = False,
             if missing_param(cooler_file_path, f'{cooler_file_path=}'.split('=')[0]): return False;   
             if missing_param(bed_file_path, f'{bed_file_path=}'.split('=')[0]): return False; 
             re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
-            if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
+            if scale: re_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(re_dataframe,target_resolution = scale)
             save_dataframe(re_dataframe, re_dataframe_filepath)
         returned_dataframes.append(re_dataframe)
 
@@ -910,7 +881,7 @@ def load_or_create_dataframe(raw_dataframe_filepath : str  = False,
                 if missing_param(start, f'{start=}'.split('=')[0]): return False;  
                 if missing_param(end, f'{end=}'.split('=')[0]): return False; 
                 re_dataframe = pelg.Dataframe_Functions.filter_cooler_to_regelement_dataframe(cooler_file_path, bed_file_path, chrom_name, resolution, start, end)
-                if scale: re_dataframe = pelg.Dataframe_Functions.collect_dataframe_to_match_resolution(re_dataframe,target_resolution = scale)
+                if scale: re_dataframe = pelg.Dataframe_Functions.downscale_dataframe_to_resolution(re_dataframe,target_resolution = scale)
             re_distance_dataframe = pelg.Dataframe_Functions.create_distance_dataframe(re_dataframe)
             re_distance_dataframe = pelg.Dataframe_Functions.expand_distance_dataframe(re_distance_dataframe)
             save_dataframe(re_distance_dataframe, re_distance_dataframe_filepath)
