@@ -16,7 +16,6 @@ import math
 import psutil
 from datetime import datetime
 import threading
-from threading import Thread
 import concurrent.futures
 
 

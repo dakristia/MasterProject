@@ -1,3 +1,4 @@
+import os
 import threading
 import warnings
 import cooler                   #type:ignore
@@ -13,7 +14,7 @@ import concurrent.futures
 
 #from .File_Functions import *
 from . import (File_Functions, Functions, General_Functions)
-from Constants import *
+import Constants
 from .File_Functions import *
 from .Functions import *
 from .General_Functions import *
@@ -73,7 +74,7 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
         pd.Dataframe: Dataframe with promoter enhancer interactions.
     """
 
-    print(cooler_file_path)
+    print("Starting _note() process.")
 
     cooler_object = cooler.Cooler(cooler_file_path)
     cooler_2Dselector = cooler_object.matrix(balance=False, as_pixels=True, join=True)
@@ -113,38 +114,23 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
 
         ## * Getting all bins where the PLS is within the range of the first region of bin
         promoter_interaction_dataframe1 = cooler_dataframe.loc[cooler_dataframe["start1"] >= prom_rounded_down].loc[cooler_dataframe["end1"] <= prom_rounded_up]
-
         ## * Getting all bins where the PLS is within the range of the second region of bin
         promoter_interaction_dataframe2 = cooler_dataframe.loc[cooler_dataframe["start2"] >= prom_rounded_down].loc[cooler_dataframe["end2"] <= prom_rounded_up]
+
 
     ## * Iterating through all rows to find relevant enhancers that are in second region, while promoter is in first region
         for row2 in promoter_interaction_dataframe1.itertuples():
             enh_rounded_down = row2[5]
             enh_rounded_up = row2[6]
             count = row2[7]
-            
-            ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-            ## * In theory this shouldn't really happen, as most if not all promoter/enhancer interactions are within 3 Mbp of eachother. 
-            diff = 0
-            if prom_rounded_up < enh_rounded_down: 
-                diff = abs(prom_rounded_up - enh_rounded_down)
-                
-            elif enh_rounded_up < prom_rounded_down:
-                diff = abs(enh_rounded_up - prom_rounded_down)
-
-            if diff > DISTANCE_LIMIT: 
-                print(f"Diff {diff} is higher than {DISTANCE_LIMIT}. Skipping row.")
-                continue
-
-            
-            ## * If we are handling promoters and enhancers handled by previous thread, go to next promoter
+                        
+            ## * If we are handling promoters and enhancers handled by previous thread, continue
             if prev_end:
                 if prev_end > prom_rounded_up and prev_end > enh_rounded_up :
                     continue
             
             ## * Finding all enhancers that are within bins that interacted with the PLS' bin
             enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_rounded_up].loc[enhancer_dataframe["chromEnd"] > enh_rounded_down]
-            
 
 
             ## * Iterate through all relevant enhancers and insert into new dataframe
@@ -153,15 +139,53 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                 enh_end = row3[3]
                 enh_name = row3[4]
                 
+                # * Skip if we already found interaction for this enhancer and promoter pair
+                already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
+                if len(already_exists_dataframe):
+                    continue
+
+
+                ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
+                diff = 0
+                if prom_end < enh_start: 
+                    diff = abs(enh_start - prom_end)
+                    
+                elif enh_end < prom_start:
+                    diff = abs(prom_start - enh_end)
+
+                if diff > DISTANCE_LIMIT: 
+                    continue
+
+                input_enh_rounded_down = round_up_and_down(enh_start,resolution)[0]
+                input_enh_rounded_up = round_up_and_down(enh_end,resolution)[1]
+                input_prom_rounded_down = prom_rounded_down
+                input_prom_rounded_up = prom_rounded_up
+                input_count = count
+
+                # * If one of the elements span multiple bins, we take the bin with the highest count. If multiple, pick first.
+                if prom_rounded_up - prom_rounded_down > resolution or input_enh_rounded_up - input_enh_rounded_down > resolution: 
+                    possible_bins_dataframe = cooler_dataframe.query(f'start1 >= {prom_rounded_down} and end1 <= {prom_rounded_up} and start2 >= {enh_rounded_down} and end2 <= {enh_rounded_up}')
+                    
+                    if len(possible_bins_dataframe):
+                        
+                        highest_count = np.max(np.array(possible_bins_dataframe['count']))
+                        possible_bins_dataframe = possible_bins_dataframe.loc[possible_bins_dataframe['count'] == highest_count]
+                        input_prom_rounded_down = np.array(possible_bins_dataframe['start1'])[0]
+                        input_prom_rounded_up = np.array(possible_bins_dataframe['end1'])[0]
+                        input_enh_rounded_down = np.array(possible_bins_dataframe['start2'])[0]
+                        input_enh_rounded_up = np.array(possible_bins_dataframe['end2'])[0]
+                        input_count = np.array(possible_bins_dataframe['count'])[0]
+
+
                 ## * Last count is -1 as we currently dont have data to insert
                 internal_columns = DATAFRAME_COLUMNS_INTERNAL
-
                 ## * Make a list out of data to insert into new dataframe
                 ## * has to be a list of list
                 #TODO: Change column order so promoters are first, and enhancers second.
                 input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, enh_rounded_down, enh_rounded_up, 
-                            prom_rounded_down, prom_rounded_up, count, -1]]
+                            enh_name, prom_name, input_enh_rounded_down, input_enh_rounded_up, 
+                            input_prom_rounded_down, input_prom_rounded_up, input_count, -1]]
+                
 
                 input_df = pd.DataFrame(input_list, columns = internal_columns)
                 new_dataframe = pd.concat([new_dataframe,input_df])
@@ -188,8 +212,12 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                 enh_name = row3[4]
                 internal_columns = DATAFRAME_COLUMNS_INTERNAL
                 
+                # * Skip if we already found interaction for this enhancer and promoter pair (Occurs on border between bins)
+                already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
+                if len(already_exists_dataframe):
+                    continue
+
                 ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-                ## * In theory this shouldn't really happen, as most if not all promoter/enhancer interactions are within 3 Mbp of eachother. 
                 diff = 0
                 if prom_end < enh_start: 
                     diff = abs(enh_start - prom_end)
@@ -198,31 +226,43 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                     diff = abs(prom_start - enh_end)
 
                 if diff > DISTANCE_LIMIT: 
-                    print(f"Diff {diff} is higher than {DISTANCE_LIMIT}. Skipping.")
+                    # print(f"Diff {diff} is higher than {DISTANCE_LIMIT}. Skipping.")
                     continue
 
-                ## * If any of the elements span multiple bins, we only count the bin containing the start of the bin
-                if enh_rounded_up - enh_rounded_down > resolution:
-                    enh_rounded_up = enh_rounded_down + resolution
-                if prom_rounded_up - prom_rounded_down > resolution:
-                    prom_rounded_up = prom_rounded_down + resolution
+                input_enh_rounded_down = round_up_and_down(enh_start,resolution)[0]
+                input_enh_rounded_up = round_up_and_down(enh_end,resolution)[1]
+                input_prom_rounded_down = prom_rounded_down
+                input_prom_rounded_up = prom_rounded_up
+                input_count = count
 
+                # * If one of the elements span multiple bins, we take the bin with the highest count. If multiple, pick first.
+                if prom_rounded_up - prom_rounded_down > resolution or input_enh_rounded_up - input_enh_rounded_down > resolution: 
+                    possible_bins_dataframe = cooler_dataframe.query(f'start1 >= {enh_rounded_down} and end1 <= {enh_rounded_up} and start2 >= {prom_rounded_down} and end2 <= {prom_rounded_up}')
+
+                    if len(possible_bins_dataframe):
+
+                        highest_count = np.max(np.array(possible_bins_dataframe['count']))
+                        possible_bins_dataframe = possible_bins_dataframe.loc[possible_bins_dataframe['count'] == highest_count]
+                        input_enh_rounded_down = np.array(possible_bins_dataframe['start1'])[0]
+                        input_enh_rounded_up = np.array(possible_bins_dataframe['end1'])[0]
+                        input_prom_rounded_down = np.array(possible_bins_dataframe['start2'])[0]
+                        input_prom_rounded_up = np.array(possible_bins_dataframe['end2'])[0]
+                        input_count = np.array(possible_bins_dataframe['count'])[0]
+                
                 ## * Make a list out of data to insert into new dataframe
                 ## * has to be a list of list
                 #TODO: Change column order so promoters are first, and enhancers second.
                 input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, enh_rounded_down, enh_rounded_up, 
-                            prom_rounded_down, prom_rounded_up, count, -1]]
+                            enh_name, prom_name, input_enh_rounded_down, input_enh_rounded_up, 
+                            input_prom_rounded_down, input_prom_rounded_up, input_count, -1]]
 
                 input_df = pd.DataFrame(input_list, columns = internal_columns)
                 new_dataframe = pd.concat([new_dataframe,input_df])
 
     print("Dropping duplicates and sorting dataframe.")
-    new_dataframe = new_dataframe.drop_duplicates().sort_values(by=['prom_start','enh_start']).reset_index(drop=True)
+    new_dataframe = new_dataframe.drop_duplicates().sort_values(by=['prom_start','bin2_start','enh_start','bin1_start']).reset_index(drop=True)
     print(f"Returning _note() thread with params start={start},end={end},prev_end={prev_end}")
     return new_dataframe
-
-
 
 def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
                                                 bed_file_path : str,
@@ -231,6 +271,22 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
                                                 end : int = False,
                                                 max_distance : int = 3_000_000,
                                                 workers = 10) -> pd.core.frame.DataFrame:
+    """Creates a dataframe with all promoter and enhancer interactions and their contact frequency. Includes the regulatory element name,
+    bins and count. 
+    TODO: Finish documentation.
+    Args:
+        cooler_file_path (str): _description_
+        bed_file_path (str): _description_
+        chrom_name (str): _description_
+        start (int, optional): _description_. Defaults to False.
+        end (int, optional): _description_. Defaults to False.
+        max_distance (int, optional): _description_. Defaults to 3_000_000.
+        workers (int, optional): _description_. Defaults to 10.
+
+    Returns:
+        pd.core.frame.DataFrame: _description_
+    """
+    
     dataframe_to_return : pd.core.frame.DataFrame = pd.DataFrame(columns = DATAFRAME_COLUMNS_INTERNAL)
 
     cooler_object = cooler.Cooler(cooler_file_path)
@@ -273,18 +329,17 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
         for one_range in thread_ranges:
             this_start = one_range[0]
             this_end = one_range[1]
-            print(f"Submitting one thread with function {_note.__name__} and args {this_start}, {this_end}, {prev_end}.")
-            #futures.append(executor.submit(_note,cooler_2Dselector, promoter_enhancer_dataframe, 
-            #                chrom_name, resolution, this_start,this_end,prev_end))
+            print(f"Submitting one process with function {_note.__name__} and args {this_start}, {this_end}, {prev_end}.")
+
             futures.append(executor.submit(_note, cooler_file_path, bed_file_path, chrom_name, this_start, this_end,
                             prev_end))
             prev_end = this_end
 
         print(f'All threads submitted.')
         print(f'Waiting for all threads to finish.')
-        print(f'Number of threads: {len(futures)}')
+        print(f'Number of processes: {len(futures)}')
         concurrent.futures.wait(futures)
-        print(f'All threads done.')
+        print(f'All subprocesses done.')
         
         print(f'Concatenating all dataframes.')
         for f in futures:
@@ -294,7 +349,7 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
 
 
         print(f'Dropping duplicates, sorting and reindexing dataframe...')
-        dataframe_to_return = dataframe_to_return.drop_duplicates().sort_values(by=['prom_start','enh_start']).reset_index(drop=True)
+        dataframe_to_return = dataframe_to_return.drop_duplicates().sort_values(by=['prom_start','bin2_start','enh_start','bin1_start']).reset_index(drop=True)
 
         print("Dataframe stats:")
         print("Len:",len(dataframe_to_return))
@@ -302,6 +357,78 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
 
         return dataframe_to_return
 
+
+def note_promoter_enhancer_interactions_genomewide(cooler_file_path : str,
+                                                bed_file_path : str,
+                                                output_path : str,
+                                                cache_dataframe : bool = True, 
+                                                max_distance : int = 3_000_000,
+                                                workers = 10) -> pd.DataFrame:
+    """Calculate promoter / enhancer interaction statistics for all 
+
+    Args:
+        cooler_file_path (str): path to .cool file.
+        bed_file_path (str): path to .bed file with PLS and ELS elements. 
+        output_path (str): filepath and name to save output.
+        cache_dataframe (bool, optional): Wether to cache dataframes made underway or not. Can be useful if the process crashes. Defaults to True.
+        max_distance (int, optional): maximum distance at which to register contacts. Defaults to 3_000_000.
+        workers (int, optional): number of subprocess workers. Defaults to 10.
+
+    Returns:
+        pd.DatFrame: dataframe with data for all 
+    """
+
+    cooler_object = cooler.Cooler(cooler_file_path)
+    chrom_names = cooler_object.chromnames
+    
+    files.create_dir_for_path(output_path)
+
+    output_path_list = output_path.split("/")
+
+    output_folder = ""
+    if output_path_list[-1:] == "": 
+        raise NameError(f"Please specify a path to a filename. {output_path} is a directory.")
+        output_folder = output_path
+    else:
+        output_folder = "/".join(output_path_list[:-1]) + "/"
+    cache_folder = output_folder + "cache/"
+    files.create_dir_for_path(cache_folder)
+
+    if os.path.isfile(output_path):
+        print(f"File already exists at {output_path}. Attempting to load.")
+        return files.load_dataframe(output_path)
+
+
+    chrom_wide_dataframe = pd.DataFrame(columns=Constants.DATAFRAME_COLUMNS_INTERNAL)
+
+    for name in chrom_names:
+        print(f"Noting promoter and enhancer interactions for {name}.")
+        
+        
+        
+        dataframe_name = output_path_list[-1:] 
+        dataframe_name = dataframe_name[0] + "." + name + ".csv" 
+        dataframe_path = cache_folder + dataframe_name
+        
+
+        loaded_dataframe = files.load_dataframe(dataframe_path)
+        if type(loaded_dataframe) == pd.DataFrame:
+            print(f"Found cached dataframe at {dataframe_path}.")
+            returned_dataframe = loaded_dataframe
+        else:
+            returned_dataframe = note_promoter_enhancer_interactions_multiprocess(cooler_file_path =cooler_file_path, 
+                                                            bed_file_path = bed_file_path,
+                                                            chrom_name= name,
+                                                            max_distance = max_distance,
+                                                            workers = workers)
+            
+            if cache_dataframe: files.save_dataframe(returned_dataframe,dataframe_path)
+
+        chrom_wide_dataframe = pd.concat([chrom_wide_dataframe, returned_dataframe], ignore_index=True)
+
+        
+    files.save_dataframe(chrom_wide_dataframe, output_path)
+    return chrom_wide_dataframe
     
 def check_if_column_sorted (dataframe : pd.DataFrame,
                             col_name : str):
@@ -313,231 +440,7 @@ def check_if_column_sorted (dataframe : pd.DataFrame,
 
 
 
-def note_interactions(  cool_file, 
-                        promoter_enhancer_dataframe : pd.core.frame.DataFrame, 
-                        chrom_name : str,
-                        start : int = None,
-                        end : int = None, 
-                        resolution : int = False,
-                        max_distance : int = False) -> pd.core.frame.DataFrame:
-    """Looks through pixels in a cooler dataframe of a given resolution and finds those who include interactions
-    between a promoter-like element and a enhancer-like element. Returns a dataframe. 
 
-
-    Args:
-        cooler_2Dselector (cooler.core.RangeSelector2D): a cooler matrix selector
-        promoter_enhancer_dataframe (pd.core.frame.DataFrame): dataframe with promoter/enhancer regions
-        chrom_name (str): chromosome we want to look at
-        start (int, optional): start of frame we want to look at. Defaults to None.
-        end (int, optional): end of frame we want to look at. Defaults to None.
-        resolution (int, optional): Deprecated.
-        #TODO Make resolution dynamic like in note_validation
-    Returns:
-        pd.core.frame.DataFrame: Dataframe with counts of proposed promoter/enhancer interactions. Columns = DATAFRAME_COLUMNS_INTERNAL
-    """
-
-    print("\n\nNoting interactions for chrom:", chrom_name, "at resolution", resolution, "...")
-
-    new_dataframe : pd.core.frame.DataFrame = pd.DataFrame(columns = DATAFRAME_COLUMNS_INTERNAL)
-
-    cooler_2Dselector = cool_file.matrix(balance=False, as_pixels=True, join=True)
-    chrom_size = cool_file.chromsizes[chrom_name]
-    resolution = cool_file.binsize
-
-    # TODO fetch numpy array and index manually. Roberto says this is faster than fetching dataframe
-    if end:
-        print("Fetching data from dataframe related to", chrom_name, "starting at", start, "ending at", end)
-        cooler_dataframe = cooler_2Dselector.fetch((chrom_name,start,end))
-    else:
-        print("No start and/or end specified. Fetching entirety of chromosome: ", chrom_name)
-        print("Note: This may eat a lot of memory.")
-        cooler_dataframe = cooler_2Dselector.fetch((chrom_name))
-
-    ## *  Copy part of dataframe with relevant chrom_name 
-    reduced_dataframe = promoter_enhancer_dataframe.loc[promoter_enhancer_dataframe["chrom"] == chrom_name]
-    ## * split dataframe into pls and els dataframes
-    promoter_dataframe, enhancer_dataframe = split_df_to_pls_els(reduced_dataframe)
-
-
-    ## * Iterate through promoters and find bins of correlating enhancers
-    print("Finding correlating promoter and enhancer bins.")
-    for row in promoter_dataframe.itertuples():
-        prom_start = row[2]
-        prom_end = row[3]
-        prom_name = row[4]
-        score = row[5] #!Unused
-        strand = row[6] #!Unused
-
-        # Get the lower end of bins    
-        prom_rounded_down = round_up_and_down(prom_start,resolution)[0]
-        # Get the higher end of bins
-        prom_rounded_up = round_up_and_down(prom_end,resolution)[1]
-
-        ## * Getting all bins where the PLS is within the range of the first region of bin
-        promoter_interaction_dataframe1 = cooler_dataframe.loc[cooler_dataframe["start1"] >= prom_rounded_down].loc[cooler_dataframe["end1"] <= prom_rounded_up]
-
-        ## * Getting all bins where the PLS is within the range of the second region of bin
-        promoter_interaction_dataframe2 = cooler_dataframe.loc[cooler_dataframe["start2"] >= prom_rounded_down].loc[cooler_dataframe["end2"] <= prom_rounded_up]
-
-
-        ## * Iterating through all rows to find relevant enhancers that are in second region, while promoter is in first region
-        for row2 in promoter_interaction_dataframe1.itertuples():
-            enh_rounded_down = row2[5]
-            enh_rounded_up = row2[6]
-            count = row2[7]
-            
-
-            ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-            ## * In theory this shouldn't really happen, as most if not all promoter/enhancer interactions are within 3 Mbp of eachother. 
-            diff = 0
-            if prom_rounded_up < enh_rounded_down: 
-                diff = abs(prom_rounded_up - enh_rounded_down)
-                
-            elif enh_rounded_up < prom_rounded_down:
-                diff = abs(enh_rounded_up - prom_rounded_down)
-
-            if diff > DISTANCE_LIMIT: 
-                print(f"Diff {diff} is higher than {DISTANCE_LIMIT}. Skipping row.")
-                continue
-
-            ## * Gettings all enhancers that are within bins that interacted with the PLS's bin
-            #enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] >= enh_rounded_down].loc[enhancer_dataframe["chromStart"] < enh_rounded_up]
-            enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_rounded_up].loc[enhancer_dataframe["chromEnd"] > enh_rounded_down]
-
-            ## * Iterate through all relevant enhancers and insert into new dataframe
-            for row3 in enhancer_hits_dataframe.itertuples():
-                enh_start = row3[2]
-                enh_end = row3[3]
-                enh_name = row3[4]
-                
-                ## * Last count is -1 as we currently dont have data to insert
-                internal_columns = DATAFRAME_COLUMNS_INTERNAL
-
-                ## * Make a list out of data to insert into new dataframe
-                ## * has to be a list of list
-                #TODO: Change column order so promoters are first, and enhancers second.
-                input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, enh_rounded_down, enh_rounded_up, 
-                            prom_rounded_down, prom_rounded_up, count, -1]]
-
-                input_df = pd.DataFrame(input_list, columns = internal_columns)
-                new_dataframe = pd.concat([new_dataframe,input_df])
-        
-        ## * Iterating through all rows to find relevant enhancers that are in first region, while promoter is in second region        
-        for row2 in promoter_interaction_dataframe2.itertuples():
-            enh_rounded_down = row2[2]
-            enh_rounded_up = row2[3]
-            count = row2[7]
-
-
-
-            ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-            diff = abs(prom_rounded_down - enh_rounded_down)
-            if diff > DISTANCE_LIMIT: continue
-
-            ## * Gettings all enhancers that are within bins that interacted with the PLS's bin
-            enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_rounded_up].loc[enhancer_dataframe["chromEnd"] > enh_rounded_down]
-
-            ## * Iterate through all relevant enhancers and insert into new dataframe
-            for row3 in enhancer_hits_dataframe.itertuples():
-                enh_start = row3[2]
-                enh_end = row3[3]
-                enh_name = row3[4]
-
-                internal_columns = DATAFRAME_COLUMNS_INTERNAL
-
-                ## * Make a list out of data to insert into new dataframe
-                ## * has to be a list of list
-                #TODO: Change column order so promoters are first, and enhancers second.
-                input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, enh_rounded_down, enh_rounded_up, 
-                            prom_rounded_down, prom_rounded_up, count, -1]]
-
-                input_df = pd.DataFrame(input_list, columns = internal_columns)
-                new_dataframe = pd.concat([new_dataframe,input_df])
-
-
-    print("Sorting dataframe and dropping duplicates.")
-    new_dataframe = new_dataframe.drop_duplicates().sort_values(by=['prom_start','enh_start']).reset_index(drop=True)
-
-    print(new_dataframe)
-    return new_dataframe
-
-def note_validation_data(cooler_2Dselector : cooler.core.RangeSelector2D, 
-                        promoter_enhancer_dataframe: pd.core.frame.DataFrame, 
-                        modle_dataframe: pd.core.frame.DataFrame, 
-                        chrom_name : str, 
-                        start : int = None, 
-                        end : int = None,
-                        count_column : int = 1) -> pd.core.frame.DataFrame:
-    """Notes promoter/enhancer interaction for a validation dataframe and adds its values to the modle dataframe.
-
-    Args:
-        cooler_2Dselector (cooler.core.RangeSelector2D): a cooler matrix selector
-        promoter_enhancer_dataframe (pd.core.frame.DataFrame): dataframe with promoter/enhancer regions
-        modle_dataframe (pd.core.frame.DataFrame): dataframe based on data generated by modle
-        chrom_name (str): chromosome we want to look at
-        start (int, optional): start of frame we want to look at. Defaults to None.
-        end (int, optional): end of frame we want to look at. Defaults to None.
-
-    Returns:
-        pd.core.frame.DataFrame: Modle dataframe with respective validation numbers. 
-    """
-    
-    if start and end:
-        print("Fetching data from dataframe related to", chrom_name, "starting at", start, "ending at", end)
-        valid_dataframe = cooler_2Dselector.fetch((chrom_name,start,end))
-    else:
-        print("No start and/or end specified. Fetching entirety of chromosome: ", chrom_name)
-        print("        Note: This may eat a lot memory")
-        valid_dataframe = cooler_2Dselector.fetch((chrom_name))
-
-    resolution = valid_dataframe["start1"][0] - valid_dataframe["end1"][0]
-
-    valid_dataframe = note_interactions(cooler_2Dselector, promoter_enhancer_dataframe, chrom_name, start, end, resolution)
-    
-    # Swap columns
-    modle_count_column = valid_dataframe['modle_count']
-    valid_count_column = valid_dataframe['valid_count']
-    valid_dataframe['modle_count'] = valid_count_column
-    valid_dataframe['valid_count'] = modle_count_column
-    
-
-    print("Counting up interactions from validation data.")
-    # Collect all counts within 1000 res dataframe to a 5000 one
-    for row in modle_dataframe.itertuples():
-        row_index = row[0]
-        bin1_start_index = DATAFRAME_COLUMNS_INTERNAL.index("bin1_start")
-        bin1_start = row[bin1_start_index + 1]
-        bin1_end_index = DATAFRAME_COLUMNS_INTERNAL.index("bin1_end")
-        bin1_end = row[bin1_end_index + 1]
-        
-        bin2_start_index = DATAFRAME_COLUMNS_INTERNAL.index("bin2_start")
-        bin2_start = row[bin2_start_index+ 1]
-        bin2_end_index = DATAFRAME_COLUMNS_INTERNAL.index("bin2_end")
-        bin2_end = row[bin2_end_index + 1]
-
-
-        start = round_up_and_down(bin1_start,5000)
-
-
-        round_towards_bin1_start = lambda param : round_up_and_down(param,5000)[0] == bin1_start
-        round_towards_bin2_start = lambda param : round_up_and_down(param,5000)[0] == bin2_start
-
-        bin2_in_range = valid_dataframe['bin2_start'].map(round_towards_bin2_start)
-        filtered_dataframe = valid_dataframe.loc[bin2_in_range]
-
-        #print(filtered_dataframe)
-        bin1_in_range = filtered_dataframe['bin1_start'].map(round_towards_bin1_start)
-        filtered_dataframe = filtered_dataframe.loc[bin1_in_range]
-
-        sum_of_pixel = filtered_dataframe['valid_count'].sum()
-        
-        modle_dataframe.at[row_index, 'valid_count'] = sum_of_pixel
-
-
-    print("Validation data added to dataframe")
-    return modle_dataframe
 
 def downscale_dataframe_to_resolution(dataframe: pd.core.frame.DataFrame,
                                         target_resolution : int = 5000) -> pd.DataFrame:
@@ -646,59 +549,6 @@ def downscale_dataframe_to_resolution(dataframe: pd.core.frame.DataFrame,
         pass
 
     return dataframe_with_target_res
-
-
-
-
-def create_list_of_chrom(
-                        cooler_file_path : str, 
-                        bed_file_path : str, 
-                        chrom_name : str, 
-                        start : int = None, 
-                        end : int = None, 
-                        cooler_valid_file_path : str = None) -> pd.core.frame.DataFrame:
-
-
-
-
-    cooler_object, cooler_2Dselector = read_cool_file(cooler_file_path)
-
-    chrom_names : list = cooler_object.chromnames
-
-    if chrom_name not in chrom_names:
-        #TODO Raise error
-        pass
-    
-    bed_df : pd.core.frame.DataFrame = extract_pls_els_from_bed(bed_file_path)
-    promoter_enhancer_dataframe : pd.core.frame.DataFrame = filter_type_in_dataframe(bed_df)
-    
-    interactions_dataframe : pd.core.frame.DataFrame = note_interactions(cooler_2Dselector, 
-                                                                        promoter_enhancer_dataframe, 
-                                                                        chrom_name, 
-                                                                        start = start, 
-                                                                        end = end)
-    
-
-    if cooler_valid_file_path:
-        cooler_valid_file_path_5000 = cooler_valid_file_path + "::/resolutions/5000"
-        cooler_valid_file_path_1000 = cooler_valid_file_path + "::/resolutions/1000"
-
-        cool_valid_object_5000 : cooler.api.Cooler = read_mcool_file(cooler_valid_file_path_5000)
-        valid_2D_selector_5000 = cool_valid_object_5000.matrix(balance=False, as_pixels=True, join=True)
-
-        cool_valid_object_1000 : cooler.api.Cooler = read_mcool_file(cooler_valid_file_path_1000)
-        valid_2D_selector_1000 = cool_valid_object_1000.matrix(balance=False, as_pixels=True, join=True)
-
-        interactions_dataframe = note_validation_data(valid_2D_selector_1000, promoter_enhancer_dataframe, interactions_dataframe, chrom_name, start, end)
-
-    write_to_file_bedpe(interactions_dataframe, "defaultOutputName.txt")
-
-    return interactions_dataframe
-
-
-
-
-
 
 
 def filter_type_in_dataframe(pe_df : pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:

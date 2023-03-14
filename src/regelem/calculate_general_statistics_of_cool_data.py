@@ -1,21 +1,106 @@
 from generate_plots import *
 
-def calculate_average_counte_per_regelem_bin(dataframe : pd.DataFrame):
+# def collect_data_per_chrom_and_res(dataframe : pd.DataFrame):
+# #,chrom,resolution,total_bins_in_chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+# #,chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count
 
-    ["chrom", "enh_start", "enh_end", "prom_start", "prom_end", 
-    "enh_name", "prom_name", "bin1_start", "bin1_end", 
-    "bin2_start", "bin2_end", "modle_count", "micro-C_count"]
+#     for row in dataframe.iterrtuples():
+#         chrom_name = 
 
-    dictionary = {"chrom","total_bins_with_pls_and_els","min_count","max_count"
-                ,"average_count","median_count","standarddeviation","total_count"}
+        
+def read_from_statistics_file(folder_path : str, prefix : str):
+    
+
+    all_files = os.scandir(folder_path)
+
+    dictionary = {"chrom_name":[],"resolution":[],"file_name":[]}
+
+    for entry in all_files:
+        file_name = entry.name
+        if "predicted_chromosome_data_" == file_name[:26]:
+            file_name_split = file_name.split("_")
+            chrom_name = file_name_split[3]
+            resolution = file_name_split[4].split(".")[0]
+
+            dictionary["chrom_name"].append(chrom_name)
+            dictionary["resolution"].append(resolution)
+            dictionary["file_name"].append(file_name)
+
+    dataframe = pd.DataFrame(dictionary)
+    return dataframe
+
+def _calculate_stats(dataframe : pd.DataFrame, chrom_name : str):
+    statistics_dataframe = pd.DataFrame(columns=["chrom",
+                "total_bins_with_pls_and_els",
+                "min_count",
+                "max_count",
+                "average_count","median_count",
+                "standarddeviation",
+                "total_count"])
 
     unique_prom_starts = np.array(pd.unique(dataframe["bin2_start"]))
     unique_enh_starts = np.array(pd.unique(dataframe["bin1_start"]))
+    total_bins_with_pls_and_els = 0
+    total_count = 0
+    all_counts = np.array([])
 
-    print(dataframe)
-    print(unique_prom_starts)
-    print(unique_enh_starts)
+    for prom_start in unique_prom_starts:
+        promoter_hits_dataframe = dataframe.loc[dataframe['bin2_start'] == prom_start]
+        possible_enhancers = np.unique(np.array(promoter_hits_dataframe['bin1_start']))
+        for enh_start in possible_enhancers:
+            reduced_df = dataframe.query(f"bin1_start == {enh_start} and bin2_start == {prom_start}")
+            if len(reduced_df):
+                count = np.array(reduced_df['modle_count'])[0]
+                total_bins_with_pls_and_els += 1
+                total_count += count
+                all_counts = np.append(all_counts,count)
 
+    min_count = np.min(all_counts)
+    max_count = np.max(all_counts)
+    average_count = np.mean(all_counts)
+    median_count = np.median(all_counts)
+    standarddeviation = np.std(all_counts)
+
+    dictionary = {"chrom":[chrom_name],
+                "total_bins_with_pls_and_els":[total_bins_with_pls_and_els],
+                "min_count":[min_count],
+                "max_count":[max_count],
+                "average_count":[average_count],"median_count":[median_count],
+                "standarddeviation":[standarddeviation],
+                "total_count":[total_count]}
+
+    new_dataframe = pd.DataFrame(dictionary)
+    statistics_dataframe = pd.concat([statistics_dataframe,new_dataframe], ignore_index=True)
+
+    return statistics_dataframe
+
+def calculate_statistics_for_dataframe(dataframe : pd.DataFrame, max_workers = 10):
+
+    chrom_names = np.unique(np.array(dataframe['chrom']))
+
+    statistics_dataframe = pd.DataFrame(columns=["chrom",
+                    "total_bins_with_pls_and_els",
+                    "min_count",
+                    "max_count",
+                    "average_count","median_count",
+                    "standarddeviation",
+                    "total_count"])
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for chrom_name in chrom_names:
+            dataframe_of_chrom = dataframe.loc[dataframe['chrom'] == chrom_name]
+            futures.append(executor.submit(_calculate_stats,dataframe_of_chrom,chrom_name))
+
+        print(f'Number of processes: {len(futures)}')
+        concurrent.futures.wait(futures)
+        print(f'All subprocesses done.')
+
+        for f in futures:
+            returned_df = f.result()
+            statistics_dataframe = pd.concat([statistics_dataframe,returned_df],ignore_index=True)
+
+    return statistics_dataframe
 
 def calculate_statistics_of_one_dataset(chrom_name = "chr19",
                             bed_file_name = "2022-11-07_cisRegElements_ENCFF573NKX_ENCFF760NUN_ENCFF919FBG_ENCFF332TNJ_grepped.7group.bed", 

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import sys
-from Constants import *
+import Constants
 
 def create_dir_for_path(path : str):
     """Create folder along path to target if they don't already exist.
@@ -33,7 +33,6 @@ def create_dir_for_path(path : str):
                     # * Create dir 
                     os.mkdir(cur_path)
         cur_path += path_delim
-        print(cur_path)
 
 def save_matrix(matrix : np.ndarray, file_path : str):
     """Save numpy matrix to file.
@@ -75,6 +74,10 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str):
 
     # * Create path and save dataframe to csv
     create_dir_for_path(file_path)
+
+    # if file_path[-4:] != ".csv":
+    #     file_path = file_path + ".csv"
+
     dataframe.to_csv(file_path)
     
     # * Check if file saved successfully
@@ -83,9 +86,20 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str):
         print(f'Failed to save dataframe to file: {file_path} \n{dataframe}')
 
 def load_dataframe(filepath : str):
+    """Attempts to load a dataframe from a file. Also drops "Unnamed: 0" column if present.
+    #TODO: Fix so Unnamed: 0 will never occur. This happens because its the old index column.
+
+
+    Args:
+        filepath (): path to dataframe
+
+    Returns:
+        pd.Dataframe: The loaded dataframe. False if file isn't found.
+    """
     try:
         print("Retrieving dataframe from:", filepath)
-        dataframe = pd.read_csv(filepath)
+        dataframe = pd.read_csv(filepath,)
+        dataframe = dataframe.drop("Unnamed: 0", axis=1)
         print("Successfully loaded dataframe from:", filepath)
         return dataframe
     except FileNotFoundError:
@@ -93,8 +107,17 @@ def load_dataframe(filepath : str):
         return False
 
 def extract_pls_els_from_bed(bed_file_name: str, split : bool = False) -> pd.core.frame.DataFrame:
+    """Read bed file and extract PLS and ELS row data.
+
+    Args:
+        bed_file_name (str): path to bed file.
+        split (bool, optional): Wether to split the data into two dataframes. One for PLS and one for ELS. If True, returns tuple of dataframes. Defaults to False.
+
+    Returns:
+        pd.core.frame.DataFrame: Dataframe with PLS and ELS.
+    """
     print("Creating dataframe with promoters and enhancers from .bed file")
-    df : pd.core.frame.DataFrame = pd.read_csv(bed_file_name, delim_whitespace=True, header = None, names = DATAFRAME_COLUMNS_BED)
+    df : pd.core.frame.DataFrame = pd.read_csv(bed_file_name, delim_whitespace=True, header = None, names = Constants.DATAFRAME_COLUMNS_BED)
 
     pls_dataframe = df.loc[df["type"].str.contains("PLS")]
     els_dataframe = df.loc[df["type"].str.contains("ELS")]
