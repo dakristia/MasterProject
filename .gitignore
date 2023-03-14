@@ -5,7 +5,6 @@
 *.bed
 *.bedpe
 *.npy
-*.csv
 *.swp
 
 # Byte-compiled / optimized / DLL files
