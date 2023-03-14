@@ -1,0 +1,12 @@
+,chrom,resolution,total_bins_in_chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+0,chrY,500000,13225,11,1.0,2.0,0.0009073724007561437,1.0,0.28747978728803447,12.0,[1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 2.],"[[ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5  5]
+ [ 5 10]]"
