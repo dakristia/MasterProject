@@ -14,12 +14,14 @@ def main():
     print(pixels_on_diagonal(10,3))
     print(pixels_on_diagonal(2_489_564,30_000))
 
-def pixels_on_diagonal(chrom_size : int, distance: int):
+def pixels_on_diagonal(chrom_size : int, diagonal_width: int):
     n_of_pixels = 0
-    for i in range(chrom_size-distance):
-            n_of_pixels += 2 * distance + 1
-    for i in range(distance):
+
+    for i in range(chrom_size-diagonal_width):
+            n_of_pixels += 2 * diagonal_width + 1
+    for i in range(diagonal_width):
             n_of_pixels += 1 + i * 2
+    
     return n_of_pixels
 
 def test_prediction_of_promoter_enhancer():
@@ -41,7 +43,7 @@ def test_prediction_of_promoter_enhancer():
 
     # Hard code a fake chrom size for testing purposes
     #chrom_size = 1_100_000
-    resolution = 100
+    resolution = 50
 
     promoter_enhancer_dataframe = pd.read_csv(bed_file_path,delim_whitespace=True,header=None,names=DATAFRAME_COLUMNS_BED)
     # Filter 'type' column to only include PLS, pELS or dELS (makes it easier to check this column later)

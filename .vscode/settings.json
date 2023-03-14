@@ -1,4 +1,9 @@
 {
     "workbench.colorTheme": "Atom One Dark",
-    "workbench.preferredDarkColorTheme": "Atom One Dark"
+    "workbench.preferredDarkColorTheme": "Atom One Dark",
+    "python.analysis.extraPaths": [
+        "cooler",
+        "file:\\wsl$\\Ubuntu\\home\\daniekri\\anaconda3\\bin\\cooler",
+        "./src/regelem"
+    ]
 }
