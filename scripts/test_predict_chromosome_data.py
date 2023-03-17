@@ -4,12 +4,11 @@ from os.path import dirname, basename, isfile, join
 
 sys.path.insert(0, '..')
 from Constants import *
-from predict_chromosome_data import *
+import predict_chromosome_data
+#from predict_chromosome_data import *
 
 def main():
     test_prediction_of_promoter_enhancer()
-
-    #def pixels_on_dig():
 
     print(pixels_on_diagonal(10,3))
     print(pixels_on_diagonal(2_489_564,30_000))
@@ -51,7 +50,7 @@ def test_prediction_of_promoter_enhancer():
     # Split dataframe into one for promoters and one for enhancers
     promoter_dataframe, enhancer_dataframe = pelg.split_df_to_pls_els(promoter_enhancer_dataframe)
 
-    calculate_promoter_enhancer_bins(   promoter_dataframe=promoter_dataframe,enhancer_dataframe=enhancer_dataframe,
+    predict_chromosome_data.calculate_promoter_enhancer_bins_multiprocess(   promoter_dataframe=promoter_dataframe,enhancer_dataframe=enhancer_dataframe,
                                         chrom_name=chrom_name,chrom_size=chrom_size, resolution=resolution, 
                                         out_file_name = f'./output/predicted_chromosome_data_test_{chrom_name}_{resolution}.csv')
 

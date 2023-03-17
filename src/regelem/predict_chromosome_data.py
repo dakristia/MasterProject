@@ -1,3 +1,4 @@
+import itertools
 import sys
 import os
 import traceback
@@ -69,10 +70,9 @@ def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
                 continue
             print(f'File {out_file_name} does NOT exist. Predict!')
             calculate_promoter_enhancer_bins_multiprocess(bed_file_path,chrom_name,chrom_size,resolution,10,total_parts,out_file_name)
-
+        break #! Remove
 
     print("Done.")
-
 
 
 def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_parts : int, part : int, max_distance : int = 3_000_000):
@@ -89,8 +89,6 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
     Returns:
         _type_: _description_
     """
-
-
 
     print(f"Calculating predicted promtoer/enhancer interactions on {chrom_name}, res {resolution}. Part {part} of {total_parts}")
 
@@ -119,7 +117,6 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
     promoters_per_part = round(promoter_dataframe_size / total_parts,0) 
 
 
-
     start_of_part = int(promoters_per_part * part - promoters_per_part)
     # * Make sure we don't overlap with previous part.
     if part != 1: start_of_part += 1
@@ -132,6 +129,7 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
 
     # * Filter dataframes to only include entries with the chrom we are looking at currently
     promoter_dataframe = promoter_dataframe[start_of_part:end_of_part + 1]
+
 
     lowest_prom_start = np.min(np.array(promoter_dataframe['chromStart']))
     highest_prom_start = np.max(np.array(promoter_dataframe['chromStart']))
@@ -158,12 +156,9 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
         # * We find the start of the first bin, and the end of the second bin
         # * Calculate how many bins the promoter spans
 
-        
-
         prom_start = int(pelg.round_up_and_down(prom_start, resolution)[0])
         prom_end = int(pelg.round_up_and_down(prom_end, resolution)[1])
         number_of_prom_bins = (prom_end - prom_start) // resolution
-
 
         for enh_row in enhancer_dataframe.itertuples():
             enh_start = enh_row[2]; 
@@ -364,7 +359,89 @@ def calculate_promoter_enhancer_bins_multiprocess(bed_file_path : str,
 
 
 
+def _predict2(bed_file_path : str, chrom_name : str, resolution : int):
+
+    promoter_dataframe, enhancer_dataframe = extract_pls_els_from_bed(bed_file_path,split=True)
+
+    promoter_dataframe.loc[promoter_dataframe['chrom'] == chrom_name] 
+    enhancer_dataframe.loc[enhancer_dataframe['chrom'] == chrom_name] 
+
+    # * Make sure df is sorted
+    
+    promoter_dataframe = promoter_dataframe.sort_values(by=["chromStart","chromEnd"])
+    enhancer_dataframe = enhancer_dataframe.sort_values(by=["chromStart","chromEnd"])
+
+
+
+    promoter_indexes = np.zeros(1000)
+    current_index = 0
+
+    print("Finding all promoters")
+
+    for row in promoter_dataframe.itertuples():
+        prom_start = int(row[2])
+        promoter_bin_start = prom_start // resolution
+        prom_end = int(row[3])
+        promoter_bin_end = prom_end // resolution
+
+        for n in range(promoter_bin_start,promoter_bin_end + 1):
+            if current_index == len(promoter_indexes):
+                promoter_indexes = np.resize(promoter_indexes, len(promoter_indexes) + 1000)
+
+            promoter_indexes[current_index] = n
+            current_index += 1
+
+    enhancer_indexes = np.zeros(1000)
+    current_index = 0
+
+    print("Finding all enhancers")
+
+    for row in enhancer_dataframe.itertuples():
+        enhancer_start = int(row[2])
+        enhancer_bin_start = enhancer_start // resolution
+        enhancer_end = int(row[3])
+        enhancer_bin_end = enhancer_end // resolution
+
+        for n in range(enhancer_bin_start,enhancer_bin_end + 1):
+            if current_index == len(enhancer_indexes):
+                enhancer_indexes = np.resize(enhancer_indexes, len(enhancer_indexes) + 1000)
+            enhancer_indexes[current_index] = n
+            current_index += 1
+
+    
+    promoter_indexes = np.resize(promoter_indexes, np.count_nonzero(promoter_indexes))
+    enhancer_indexes = np.resize(enhancer_indexes, np.count_nonzero(enhancer_indexes))
+
+    unique_promoter_indexes = np.unique(promoter_indexes)
+    unique_enhancer_indexes = np.unique(enhancer_indexes)
+
+
+    print("Finding all indexes")
+
+    all_indexes = np.empty(shape=(len(promoter_indexes) * len(enhancer_indexes),2),dtype=np.uint16)
+    all_indexes_index = 0
+    for result in itertools.product(unique_promoter_indexes,unique_enhancer_indexes):
+        r1 = int(result[0])
+        r2 = int(result[1])
+        all_indexes[all_indexes_index] = np.array([r1,r2],dtype=np.uint16)
+        all_indexes_index += 1
+
+
+    unique_elements, counts = np.unique(all_indexes,return_counts=True,axis=1)
+
+
+    unique_dict = {}
+    for element, count in zip(unique_elements, counts):
+        unique_dict[element] = count
+
+
+    print(unique_elements)
+
+    total = np.sum(list(unique_dict.values()))
+    bins = len(unique_dict)
+    print(total, bins)
 
 if __name__ == "__main__":
-    main()
+    #main()
+    _predict2("../../input/H1-hESC.7group.bed", "chr19", 100_000)
 
