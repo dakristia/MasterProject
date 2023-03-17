@@ -103,33 +103,33 @@ def plot_average_regulatory_interaction():
     resolution = np.array(chr_wide_dataframe['resolution'])
     average_count_per_pe_bin = chr_wide_dataframe['average_regulatory_count_per_pe_bin']
 
-    #TODO: Make this entire file less tacky
-    modle_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
-    modle_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
+    # #TODO: Make this entire file less tacky
+    # modle_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
+    # modle_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
 
-    modle_res = np.concatenate((modle_dictionary_1000['resolution'],modle_dictionary_5000['resolution']))
+    # modle_res = np.concatenate((modle_dictionary_1000['resolution'],modle_dictionary_5000['resolution']))
 
-    modle_max_count = np.concatenate((modle_dictionary_1000['max_count'],modle_dictionary_5000['max_count']))
+    # modle_max_count = np.concatenate((modle_dictionary_1000['max_count'],modle_dictionary_5000['max_count']))
 
-    modle_average_regulatory_count_per_pe_bin = np.concatenate((modle_dictionary_1000['average_regulatory_count_per_pe_bin'],modle_dictionary_5000['average_regulatory_count_per_pe_bin']))
+    # modle_average_regulatory_count_per_pe_bin = np.concatenate((modle_dictionary_1000['average_regulatory_count_per_pe_bin'],modle_dictionary_5000['average_regulatory_count_per_pe_bin']))
 
-    H1_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
-    H1_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
+    # H1_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
+    # H1_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
 
-    H1_res = np.concatenate((H1_dictionary_1000['resolution'],H1_dictionary_5000['resolution']))
+    # H1_res = np.concatenate((H1_dictionary_1000['resolution'],H1_dictionary_5000['resolution']))
 
-    H1_max_count = np.concatenate((H1_dictionary_1000['max_count'],H1_dictionary_5000['max_count']))
+    # H1_max_count = np.concatenate((H1_dictionary_1000['max_count'],H1_dictionary_5000['max_count']))
 
-    H1_average_regulatory_count_per_pe_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_pe_bin'],H1_dictionary_5000['average_regulatory_count_per_pe_bin']))
+    # H1_average_regulatory_count_per_pe_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_pe_bin'],H1_dictionary_5000['average_regulatory_count_per_pe_bin']))
 
     fig, ax = plt.subplots(figsize=(20,15))
 
     ax.plot(resolution.astype('str'),average_count_per_pe_bin, 
             label = "Average number of possible regulatory interaction per bin with at least 1 promoter and 1 enhancer, genomewide.")
-    ax.plot(modle_res,modle_average_regulatory_count_per_pe_bin, 
-            label = "Average number of regulatory interaction simulated by modle per bin with at least 1 promoter and 1 enhancer, genomewide.")
-    ax.plot(H1_res,H1_average_regulatory_count_per_pe_bin, 
-            label = "Average number of regulatory interaction registered in H1-hESC per bin with at least 1 promoter and 1 enhancer, genomewide.")
+    # ax.plot(modle_res,modle_average_regulatory_count_per_pe_bin, 
+    #         label = "Average number of regulatory interaction simulated by modle per bin with at least 1 promoter and 1 enhancer, genomewide.")
+    # ax.plot(H1_res,H1_average_regulatory_count_per_pe_bin, 
+    #         label = "Average number of regulatory interaction registered in H1-hESC per bin with at least 1 promoter and 1 enhancer, genomewide.")
 
 
     plt.xlabel("Resolution")
