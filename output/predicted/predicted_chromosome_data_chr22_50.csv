@@ -1,0 +1,8 @@
+,chrom,resolution,total_bins_in_chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+0,chr22,50,1016369,1615812.0,1,2,1.0131989365099405,1.0,0.11412591548350037,1637139.0,[1 1 1 ... 1 1 1],"[[ 341694  343424]
+ [ 341694  343425]
+ [ 341694  343426]
+ ...
+ [1012842 1015675]
+ [1012843 1015675]
+ [1012844 1015675]]"

@@ -1,0 +1,13 @@
+,chrom,resolution,total_bins_in_chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+0,chrY,1000,3275043984,12,1.0,3.0,6.412127624115597e-09,1.5,0.82915619758885,21.0,[1. 1. 1. 2. 2. 2. 3. 3. 3. 1. 1. 1.],"[[2787 2841]
+ [2787 2935]
+ [2787 2936]
+ [2841 2934]
+ [2934 2935]
+ [2934 2936]
+ [2841 2935]
+ [2935 2935]
+ [2935 2936]
+ [2841 5000]
+ [2935 5000]
+ [2936 5000]]"

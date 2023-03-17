@@ -1,0 +1,16 @@
+,chrom,resolution,total_bins_in_chrom,total_bins_with_pls_and_els,min_count,max_count,average_count,median_count,standarddeviation,total_count,list_of_counts,list_of_indexes
+0,chrY,500,13099947025,15,1.0,3.0,1.832068477391419e-09,1.0,0.7999999999999999,24.0,[1. 1. 1. 2. 2. 2. 3. 3. 3. 1. 1. 1. 1. 1. 1.],"[[ 5575  5683]
+ [ 5575  5871]
+ [ 5575  5872]
+ [ 5683  5869]
+ [ 5869  5871]
+ [ 5869  5872]
+ [ 5683  5870]
+ [ 5870  5871]
+ [ 5870  5872]
+ [ 5683  5871]
+ [ 5871  5871]
+ [ 5871  5872]
+ [ 5683 10000]
+ [ 5871 10000]
+ [ 5872 10000]]"

@@ -58,7 +58,7 @@ def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
     print(f"Starting {max_workers} processes with function {calculate_promoter_enhancer_bins_multiprocess.__name__}")
     #with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
     futures = []
-    for row in chrom_sizes_dataframe.itertuples():
+    for row in chrom_sizes_dataframe.iloc[::-1].itertuples():
         chrom_name = row[1]
         chrom_size = row[2]
         total_parts = len(promoter_dataframe.loc[promoter_dataframe['chrom'] == chrom_name])
@@ -308,8 +308,11 @@ def calculate_promoter_enhancer_bins_multiprocess(bed_file_path : str,
         
         print(f'Concatenating all dataframes.')
         for f in futures:
-            returned_df = f.result()
-            dataframe_results = pd.concat([dataframe_results,returned_df],ignore_index=True)
+            try:
+                returned_df = f.result()
+                dataframe_results = pd.concat([dataframe_results,returned_df],ignore_index=True)
+            except Exception:
+                continue
                 
         counter_np = np.empty(shape=0, dtype = np.uint16)
         coordinate_np = np.empty(shape=(0,2), dtype = np.uint32)
