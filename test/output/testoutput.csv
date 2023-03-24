@@ -1,6 +1,0 @@
-chrom,chromStart,chromEnd,name,score,strand,thickStart,thickEnd,itemRgb,type,complete
-chr1,725000,725300,EH38E2000000,0,.,725000,725346,"255,0,0",PLS,All-data/Full-classification
-chr1,726000,726300,EH38E2000001,0,.,725000,725346,"255,0,0",PLS,All-data/Full-classification
-chr1,732400,732450,EH38E2000002,0,.,725000,725346,"255,0,0",pELS,All-data/Full-classification
-chr1,745100,745250,EH38E2000003,0,.,725000,725346,"255,0,0",dELS,All-data/Full-classification
-chr1,750000,750400,EH38E2000004,0,.,725000,725346,"255,0,0",PLS,All-data/Full-classification

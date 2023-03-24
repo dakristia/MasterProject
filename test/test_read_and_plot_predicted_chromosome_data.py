@@ -1,3 +1,6 @@
+
+import sys
+sys.path.append('../src/regelem')
 import read_and_plot_predicted_chromosome_data
 
 def main():

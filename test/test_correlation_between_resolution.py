@@ -1,12 +1,15 @@
 import numpy as np
+
+import sys
+sys.path.append('../src/regelem')
 import correlation_between_resolutions
 import files
 
 def main():
     print("ayo")
 #"output/"
-    input_folder = "../../input/"
-    output_folder = "../../output/"
+    input_folder = "../input/"
+    output_folder = "../output/"
 
     #* Modle FIles
     dataframe1_file_name = "cache/chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.chr1.csv"

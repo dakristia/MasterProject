@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
 import cooler
+
+
+import sys
+sys.path.append('../src/regelem')
 import Constants
 
 def main():
 
-    cooler_object1 = cooler.Cooler("../../input/H1-hESC.mcool::/resolutions/5000")
-    cooler_object2 = cooler.Cooler("../../input/H1-hESC.mcool::/resolutions/1000")
+    cooler_object1 = cooler.Cooler("../input/H1-hESC.mcool::/resolutions/5000")
+    cooler_object2 = cooler.Cooler("../input/H1-hESC.mcool::/resolutions/1000")
 
     selector1 = cooler_object1.matrix(balance=False, as_pixels=True, join=True)
     selector2 = cooler_object2.matrix(balance=False, as_pixels=True, join=True)  
@@ -27,7 +31,7 @@ if __name__ == "__main__":
 
 
 def old_test():
-    dataframe = pd.read_csv("../../input/H1-hESC.7group.PLSELSONLY.bed",delim_whitespace=True,header=None,names=Constants.DATAFRAME_COLUMNS_BED)
+    dataframe = pd.read_csv("../input/H1-hESC.7group.PLSELSONLY.bed",delim_whitespace=True,header=None,names=Constants.DATAFRAME_COLUMNS_BED)
 
     #dataframe = dataframe[dataframe["chrom"] == "chr1"]
     pls_dataframe = dataframe[dataframe["type"].str.contains('PLS')]

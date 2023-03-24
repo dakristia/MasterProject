@@ -1,9 +1,12 @@
 import os
 import pandas as pd
 import numpy as np
+
+import sys
+sys.path.append('../src/regelem')
 import chrom_resolution_frequency_correlation_plot as crfcp
 
-input_folder : str = "../../input/predicted/"
+input_folder : str = "../input/predicted/"
 
 def main():
     chrom_and_resolution_average_dataframe = get_output_file_names()
