@@ -99,7 +99,7 @@ def load_dataframe(filepath : str):
     try:
         print("Retrieving dataframe from:", filepath)
         dataframe = pd.read_csv(filepath,)
-        dataframe = dataframe.drop("Unnamed: 0", axis=1)
+        if "Unnamed:0" in dataframe: dataframe = dataframe.drop("Unnamed: 0", axis=1)
         print("Successfully loaded dataframe from:", filepath)
         return dataframe
     except FileNotFoundError:

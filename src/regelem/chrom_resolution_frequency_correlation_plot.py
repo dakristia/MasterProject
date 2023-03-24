@@ -14,10 +14,9 @@ def plot_tripple_correlation(feature1 : list, feature2 : list, feature3 : list,
                             label3 : str = "Feature3",
                             file_name : str = "tripple_plot.png",
                             show : bool = True):
-
     
     data = pd.DataFrame({label1: feature1,label2: feature2,label3: feature3})
-
+    
     matrix = np.empty(shape=(len(feature1),len(feature2)))
 
     unique_feature1 = np.unique(label1)

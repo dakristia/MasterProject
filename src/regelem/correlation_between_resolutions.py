@@ -24,7 +24,7 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
             bin2_start = row[bin2_start_index]
             bin2_end = row[bin2_end_index]
 
-            # * Find all bins that are 
+            # * Find all bins that correlate 
             bins_in_range_dataframe = dataframe2.query(f'bin1_start >= {bin1_start} and bin1_end <= {bin1_end}') 
             bins_in_range_dataframe = bins_in_range_dataframe.query(f'bin2_start >= {bin2_start} and bin2_end <= {bin2_end}' )  
 
@@ -38,6 +38,7 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
             df2_counts = np.array(bins_in_range_dataframe['modle_count'])
 
             # * To calculate correlation, we need equal size arrays.
+            # * Duplicate count in lower res array to match the number of found counts in the higher res array
             df1_counts = [df1_count for c in df2_counts]
 
             df1_flatten_counts = np.append(df1_flatten_counts,df1_counts)
@@ -47,7 +48,7 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
     return df1_flatten_counts, df2_flatten_counts
 
-def correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame, output_path : str,
+def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame, label1: str, label2 : str, output_path : str, 
                                     res1 : int = False, res2 : int = False, logScale : bool = False, scatter_plot : bool = True, box_plot : bool = True):
     #TODO: Make this dynamic.
     if res2 > res1:
@@ -59,12 +60,11 @@ def correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.Da
     if not res2:
         res2 = int(dataframe2['bin2_end'][0] - dataframe2['bin2_start'][0])
 
-
+    
     chrom_names = np.array(pd.unique(dataframe1['chrom']))
 
     df1_flatten_counts = np.array([])
     df2_flatten_counts = np.array([])
-
 
     with concurrent.futures.ProcessPoolExecutor(max_workers = 5) as executor:
 
@@ -81,24 +81,46 @@ def correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.Da
             returned_df1, returned_df2 = f.result()
             
             df1_flatten_counts = np.append(df1_flatten_counts,returned_df1)
-            df2_flatten_counts = np.append(df2_flatten_counts,returned_df2)
+            df2_flatten_counts = np.append(df2_flatten_counts,returned_df2) 
 
-    
-    fig, ax = plt.subplots()
+    if scatter_plot and box_plot: fig, (ax1, ax2, ax3) = plt.subplots(1,3, figsize = (17, 5))
+    else: fig, ax1 = plt.subplots()
 
-    if logScale: plt.yscale('log')
+    if logScale: plt.yscale('log'); plt.xscale('log') 
+
+
     if scatter_plot:
-        plt.scatter(df1_flatten_counts, df2_flatten_counts)
-        plt.xlabel(f'Raw contact counts at {res1}bp resolution')
-        plt.ylabel(f'Raw contact counts at {res2}bp resolution')
-        plt.title(f'Correlation between counts at {res1}bp resolution and {res2}bp resolution.')
-        plt.show()
         
-        plt.savefig(output_path)
+        ax1.scatter(df1_flatten_counts, df2_flatten_counts, c=df1_flatten_counts, cmap = 'hsv')
+        ax1.set_xlabel(f'Raw contact counts at {res1}bp resolution')
+        ax1.set_ylabel(f'Raw contact counts at {res2}bp resolution')
 
-    # if box_plot:
-    #     dictionary = {'modle_counts':}
-    #     box_plots
+
+
+        ## * With correlation line
+        ax2.scatter(df1_flatten_counts, df2_flatten_counts, c=df1_flatten_counts, cmap = 'hsv')
+        ax2.set_xlabel(f'Raw contact counts at {res1}bp resolution')
+        ax2.set_ylabel(f'Raw contact counts at {res2}bp resolution')
+
+        min_val = np.min([df1_flatten_counts.min(), df2_flatten_counts.min()])
+        max_val = np.max([df1_flatten_counts.max(), df2_flatten_counts.max()])
+
+
+        perfect_correlation_x = np.linspace(min_val,max_val)
+        perfect_correlation_y = perfect_correlation_x
+        ax2.plot(perfect_correlation_x, perfect_correlation_y, linestyle='--', color='black',label="Perfect correlation")
+        #ax1.title(f'Correlation between counts at {res1}bp resolution and {res2}bp resolution.')
+        
+        
+    if box_plot:
+        ax3.boxplot([df1_flatten_counts,df2_flatten_counts], labels=[label1,label2])
+        ax3.set_xlabel('Data Source')
+        ax3.set_ylabel('Raw Counts')
+
+    plt.savefig(output_path)
+    plt.show()
+    #plot_utils.view_plot(output_path)
+
 
 #! Todo: Change box_plots to use lists of lists in stead of dataframes
 def box_plots(dataframes : list, labels : list):

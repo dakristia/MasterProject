@@ -7,7 +7,50 @@ import numpy as np
 import Plotter as plotter
 import matplotlib.pyplot as plt #type:ignore
 
-output_folder = "../../output/predicted/"
+output_folder = "../../input/predicted/"
+
+
+chrom_sizes = {
+"chr1":    248956422,
+"chr2":    242193529,
+"chr3":    198295559,
+"chr4":    190214555,
+"chr5":    181538259,
+"chr6":    170805979,
+"chr7":    159345973,
+"chrX":    156040895,
+"chr8":    145138636,
+"chr9":    138394717,
+"chr11":   135086622,
+"chr10":   133797422,
+"chr12":   133275309,
+"chr13":   114364328,
+"chr14":   107043718,
+"chr15":   101991189,
+"chr16":   90338345,
+"chr17":   83257441,
+"chr18":   80373285,
+"chr20":   64444167,
+"chr19":   58617616,
+"chrY":   57227415,
+"chr22":   50818468,
+"chr21":   46709983}
+
+def bins_within_diagonal(region_len : int, resolution : int, diag_len : int):
+    bins_on_diagonal = region_len // resolution
+    diag_len_bins = diag_len // resolution
+    one_diag = (diag_len * 2 + 1) // resolution
+
+    bins_before_diag_len = (region_len - diag_len) // resolution
+
+    bins_within_diag = bins_before_diag_len * one_diag
+
+    for i in range(diag_len_bins + 1):
+        bins_on_diagonal2 = diag_len_bins - i
+        one_diag = (bins_on_diagonal2 * 2 + 1)
+        bins_within_diag += one_diag
+
+    return bins_within_diag
 
 
 def main():
@@ -58,6 +101,7 @@ def plot_average_regulatory_interaction():
                     resolutions_in_all_chroms = resolutions_in_all_chroms[resolutions_in_all_chroms != res]
 
     reduced_dataframe = pd.DataFrame(columns=dataframe.columns)
+
     for res in resolutions_in_all_chroms:
         part_df = dataframe[dataframe["resolution"] == res]
         reduced_dataframe = pd.concat([reduced_dataframe,part_df])
@@ -96,61 +140,76 @@ def plot_average_regulatory_interaction():
         chr_wide_dict["average_regulatory_count_per_bin"].append(average_regulatory_count_per_bin)
         chr_wide_dict["average_regulatory_count_per_pe_bin"].append(average_regulatory_count_per_pe_bin)
     
-
+    
     chr_wide_dataframe = pd.DataFrame(chr_wide_dict).sort_values(['resolution']).reset_index(drop=True)
-    print(chr_wide_dataframe)
+    chr_wide_dataframe.drop(chr_wide_dataframe.tail(1).index,inplace=True)
+    #chr_wide_dataframe.drop
 
+    print(chr_wide_dataframe)
+    exit()
     coolerPlotter = plotter.CoolerPlotter()
 
     resolution = np.array(chr_wide_dataframe['resolution'])
     average_count_per_pe_bin = chr_wide_dataframe['average_regulatory_count_per_pe_bin']
+    average_count_per_bin = chr_wide_dataframe['average_regulatory_count_per_bin']
 
-    # #TODO: Make this entire file less tacky
-    # modle_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
-    # modle_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
-
-    # modle_res = np.concatenate((modle_dictionary_1000['resolution'],modle_dictionary_5000['resolution']))
-
-    # modle_max_count = np.concatenate((modle_dictionary_1000['max_count'],modle_dictionary_5000['max_count']))
-
-    # modle_average_regulatory_count_per_pe_bin = np.concatenate((modle_dictionary_1000['average_regulatory_count_per_pe_bin'],modle_dictionary_5000['average_regulatory_count_per_pe_bin']))
-
-    # H1_dictionary_5000 = reformat_statistics_file_and_get_dict("../../output/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
-    # H1_dictionary_1000 = reformat_statistics_file_and_get_dict("../../output/old/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
-
-    # H1_res = np.concatenate((H1_dictionary_1000['resolution'],H1_dictionary_5000['resolution']))
-
-    # H1_max_count = np.concatenate((H1_dictionary_1000['max_count'],H1_dictionary_5000['max_count']))
-
-    # H1_average_regulatory_count_per_pe_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_pe_bin'],H1_dictionary_5000['average_regulatory_count_per_pe_bin']))
-
-    fig, ax = plt.subplots(figsize=(20,15))
-
-    ax.plot(resolution.astype('str'),average_count_per_pe_bin, 
-            label = "Average number of possible regulatory interaction per bin with at least 1 promoter and 1 enhancer, genomewide.")
-    # ax.plot(modle_res,modle_average_regulatory_count_per_pe_bin, 
-    #         label = "Average number of regulatory interaction simulated by modle per bin with at least 1 promoter and 1 enhancer, genomewide.")
-    # ax.plot(H1_res,H1_average_regulatory_count_per_pe_bin, 
-    #         label = "Average number of regulatory interaction registered in H1-hESC per bin with at least 1 promoter and 1 enhancer, genomewide.")
+    # * Get data from files
+    modle_dictionary_5000 = reformat_statistics_file_and_get_dict("../../input/dataframes/modle_binsize5000/statistics/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize5000_tcd7.31.cool_H1-hESC.7group.bed.csv", 5000)
+    modle_dictionary_1000 = reformat_statistics_file_and_get_dict("../../input/dataframes/modle_binsize1000/statistics/statistics_chromosome_wide_promoter_enhancer_data_outfile_binsize1000_tcd2.33.cool_H1-hESC.7group.bed.csv",1000)
 
 
-    plt.xlabel("Resolution")
-    plt.ylabel("Bins")
+    H1_dictionary_5000 = reformat_statistics_file_and_get_dict("../../input/dataframes/H1_binsize5000/statistics/5000_H1-hESC.7group.bed", 5000)
+    H1_dictionary_1000 = reformat_statistics_file_and_get_dict("../../input/dataframes/H1_binsize1000/statistics/1000_H1-hESC.7group.bed", 1000)
 
-    # Ensure 1 is present on the y axis
-    plt.yticks(list(plt.yticks()[0]) + [1])
-    ax.yaxis.set_ticks([0,1,5,20,40])
+    # * Calculate
+    modle_average_regulatory_count_per_pe_bin = np.concatenate((modle_dictionary_1000['average_regulatory_count_per_pe_bin'],modle_dictionary_5000['average_regulatory_count_per_pe_bin']))
+    modle_average_regulatory_count_per_bin = np.concatenate((modle_dictionary_1000['average_regulatory_count_per_bin'],modle_dictionary_5000['average_regulatory_count_per_bin']))
 
-    #Ensures x ticks are spaced out evenly
-    ax.xaxis.set_ticks(resolution.astype('str'))
-    #ax.ticklabel_format(useOffset=True, style='plain')
+    modle_res = np.concatenate((modle_dictionary_1000['resolution'],modle_dictionary_5000['resolution']))
+    modle_max_count = np.concatenate((modle_dictionary_1000['max_count'],modle_dictionary_5000['max_count']))
     
-    plt.grid()
-    plt.legend()
+    H1_res = np.concatenate((H1_dictionary_1000['resolution'],H1_dictionary_5000['resolution']))
+    H1_max_count = np.concatenate((H1_dictionary_1000['max_count'],H1_dictionary_5000['max_count']))
+    H1_average_regulatory_count_per_pe_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_pe_bin'],H1_dictionary_5000['average_regulatory_count_per_pe_bin']))
+    H1_average_regulator
+    y_count_per_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_bin'],H1_dictionary_5000['average_regulatory_count_per_bin']))
 
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(40, 15))
+
+    # * Average per PE bin: Total counts divided by number of bins with at least one promoter and enhancer pair
+    ax1.plot(resolution.astype('str'), average_count_per_pe_bin, marker='o',
+            label="Average number of possible regulatory interaction per bin with at least 1 promoter and 1 enhancer, genomewide.")
+    ax1.plot(modle_res, modle_average_regulatory_count_per_pe_bin, marker='o',
+            label="Average number of regulatory interaction simulated by modle per bin with at least 1 promoter and 1 enhancer, genomewide.")
+    ax1.plot(H1_res, H1_average_regulatory_count_per_pe_bin, marker='o',
+            label="Average number of regulatory interaction registered in H1-hESC per bin with at least 1 promoter and 1 enhancer, genomewide.")
+
+    ax1.set_xlabel("Resolution")
+    ax1.set_ylabel("Average contact per bin")
+    ax1.set_yticks([0, 1, 5, 20, 40])
+    ax1.set_xticks(resolution.astype('str'))
+    ax1.set_yscale('log')
+    ax1.grid()
+    ax1.legend()
+
+    # * Average per bin: Total counts divided by number of bins in chromosome. Calculation done on each chromosome, then collected and divided by number of chromosomes. 
+    ax2.plot(resolution.astype('str'), average_count_per_bin, marker='o',
+            label="Average number of possible regulatory interaction per bin, genomewide.")
+    ax2.plot(modle_res, modle_average_regulatory_count_per_bin, marker='o',
+            label="Average number of regulatory interaction per bin simulated by modle, genomewide.")
+    ax2.plot(H1_res, H1_average_regulatory_count_per_bin, marker='o',
+            label="Average number of regulatory interaction per bin registered in H1-hESC, genomewide.")
+
+    ax2.set_xlabel("Resolution")
+    ax2.set_ylabel("Average contact per bin")
+    ax2.grid()
+    ax2.legend()
+
+    # * Save and show figure
     fig.show()
-    fig.savefig("test_line_plot.png")
-    coolerPlotter.view_plot("test_line_plot.png")
+    fig.savefig("combined_plots.png")
+    coolerPlotter.view_plot("combined_plots.png")
 
 def reformat_statistics_file_and_get_dict(file_path : str, resolution : int) -> dict:
     """Reads a dataframe from a file and extracts the 'max_count', 'total_count' and 'total_bins_with_pls_and_els' columns. 
@@ -163,30 +222,29 @@ def reformat_statistics_file_and_get_dict(file_path : str, resolution : int) -> 
     Returns:
         dict: dictionary {"resolution":[],"max_count":[],"average_regulatory_count_per_bin":[], "average_regulatory_count_per_pe_bin":[]}
     """
-    resolution = str(resolution)
+    resolution = resolution
 
     dataframe = pd.read_csv(file_path)
 
     dictionary = {"resolution":[],"max_count":[],"average_regulatory_count_per_bin":[], "average_regulatory_count_per_pe_bin":[]}
 
+
     max_count = np.mean(dataframe['max_count'])
     average_regulatory_count_per_pe_bin = np.sum(dataframe['total_count']) / np.sum(dataframe['total_bins_with_pls_and_els'])
 
+
+    # * Find all bins without the diagonal
+    total_bins = np.sum([bins_within_diagonal(size,resolution,3_000_000) for size in chrom_sizes.values()])
+    average_regulatory_count_per_bin = np.sum(dataframe['total_count']) / total_bins
+
     dictionary['max_count'].append(max_count) 
+    dictionary['average_regulatory_count_per_bin'].append(average_regulatory_count_per_bin)
     dictionary['average_regulatory_count_per_pe_bin'].append(average_regulatory_count_per_pe_bin) 
-    dictionary['resolution'].append(resolution)
+    dictionary['resolution'].append(str(resolution))
     
     return dictionary
     
 
-def add_statistics_file_line(file_paths : np.array, resolutions : np.array, ax):
-    print(type(ax))
-
-    for file_path in file_paths:
-
-        dataframe = pd.read_csv(file_path)
-
-        #value = 
 
 if __name__ == "__main__":
     main()
