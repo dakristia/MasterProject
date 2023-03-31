@@ -63,7 +63,7 @@ def load_matrix(file_path: str) -> np.array:
         print("Failed to load matrix from:",file_path)
         return False
 
-def save_dataframe(dataframe : pd.DataFrame, file_path : str):
+def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np.array = False):
     """Save pandas dataframe to file
 
     Args:
@@ -75,8 +75,31 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str):
     # * Create path and save dataframe to csv
     create_dir_for_path(file_path)
 
-    # if file_path[-4:] != ".csv":
-    #     file_path = file_path + ".csv"
+    dataframe = dataframe.copy()
+
+    if numpy_columns:
+        index = 0
+        for column_name in numpy_columns:
+            print(f"Saving {column_name} as numpy array")
+            column = dataframe[column_name]
+
+            column_array = np.array([column])[0]
+
+            new_folder = os.path.splitext(file_path)[0]
+            numpy_path = f'{new_folder}/numpies/{column_name}.npy'
+            create_dir_for_path(numpy_path)
+            np.save(numpy_path,column_array)
+
+            # * Replace elements with filepath of array instead. 
+            column_file_name_array = np.array([numpy_path for _ in column_array])
+            dataframe[column_name] = column_file_name_array
+            
+            # for e in column:
+            #     array = e
+            #     array_file_path = f'{file_path}/numpies/{index}.np'
+            #     index += 1
+            #     np.save(array_file_path,array)
+            #     column_file_names = np.append(column_file_names,array_file_path)    
 
     dataframe.to_csv(file_path)
     
@@ -84,8 +107,10 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str):
     check_if_saved = os.path.isfile(file_path)
     if not check_if_saved:
         print(f'Failed to save dataframe to file: {file_path} \n{dataframe}')
+    else:
+        print(f'Successfully saved dataframe to file at {file_path} (or atleast the file now exists)')
 
-def load_dataframe(filepath : str):
+def load_dataframe(filepath : str, numpy_columns : list = False, allow_pickle = False):
     """Attempts to load a dataframe from a file. Also drops "Unnamed: 0" column if present.
     #TODO: Fix so Unnamed: 0 will never occur. This happens because its the old index column.
 
@@ -98,10 +123,30 @@ def load_dataframe(filepath : str):
     """
     try:
         print("Retrieving dataframe from:", filepath)
-        dataframe = pd.read_csv(filepath,)
-        if "Unnamed:0" in dataframe: dataframe = dataframe.drop("Unnamed: 0", axis=1)
+        dataframe = pd.read_csv(filepath,index_col=0)
+        if "Unnamed:0" in dataframe.columns: dataframe = dataframe.drop("Unnamed: 0", axis=1)
         print("Successfully loaded dataframe from:", filepath)
+
+        index = 0
+
+        if numpy_columns:
+            print("Numpy columns parameter True. Attempting to load numpy arrays")
+            for column_name in numpy_columns:
+                column = dataframe[column_name]
+                numpy_path = column[0]
+                print(f"Loading: {numpy_path}")
+                try:
+                    dataframe[column_name] = np.load(numpy_path, allow_pickle=allow_pickle)
+                except ValueError as e:
+                    e.__str__
+                    if str(e) == "Object arrays cannot be loaded when allow_pickle=False":
+                        print(f"ENCOUNTERED ERROR: {e}\n Set allow_pickle paramter to true if you trust the source.")
+                        return False
+                    else:
+                        print(e)
+
         return dataframe
+
     except FileNotFoundError:
         print("Failed to load dataframe from:", filepath)
         return False
