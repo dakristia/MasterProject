@@ -6,6 +6,14 @@
 *.bedpe
 *.npy
 *.swp
+**/GeneHancer/
+**/genehancer/
+**/Genehancer/
+**/output/**
+**/input/**
+input/
+test/output/**
+test/output/H1_5000/dataframe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
