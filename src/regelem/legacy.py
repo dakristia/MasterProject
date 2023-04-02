@@ -1,3 +1,184 @@
+# def genehancer_data_to_bins(input_path : str, resolution : str, output_path : str = False):
+
+#     genehancer_dataframe = read_genehancer_to_df(input_path)
+
+#     enhancer_genehancer_dataframe = genehancer_dataframe[genehancer_dataframe['feature name'] == 'Enhancer']
+#     promoter_genehancer_dataframe = genehancer_dataframe[genehancer_dataframe['feature name'] == 'Promoter']
+#     promoter_enhancer_genehancer_dataframe = genehancer_dataframe[genehancer_dataframe['feature name'] == 'Promoter/Enhancer']
+
+#     max_array_len = len(promoter_genehancer_dataframe * enhancer_genehancer_dataframe)
+
+#     max_feature_name_length = _find_max_length_of_column(genehancer_dataframe, 'feature name')
+#     feature_name_dtype = f'U{max_feature_name_length}'
+
+#     max_chrom_name_length = _find_max_length_of_column(genehancer_dataframe, '#chrom')
+#     chrom_name_dtype = f'U{max_chrom_name_length}'
+
+#     # * Preallocate memory for arrays
+#     chromosome_array = np.empty(shape=max_array_len, dtype=chrom_name_dtype)
+
+#     promoter_genehancer_id_array = np.empty(shape=max_array_len, dtype=feature_name_dtype)
+#     enhancer_genehancer_id_array = np.empty(shape=max_array_len, dtype=feature_name_dtype)
+
+#     promoter_start_position_array = np.empty(shape=max_array_len, dtype=np.uint32)
+#     promoter_end_position_array = np.empty(shape=max_array_len, dtype=np.uint32)
+#     enhancer_start_position_array = np.empty(shape=max_array_len, dtype=np.uint32)
+#     enhancer_end_position_array = np.empty(shape=max_array_len, dtype=np.uint32)
+
+#     # * Add pixel indexes to this array with folliwing syntax:
+#     # * pixel_index_array[index].append(np.array([value1,value2]))
+#     pixel_index_array = np.empty(shape=(max_array_len,), dtype=object)
+#     pixel_index_array[:] = [[] for _ in range(max_array_len)]
+
+#     assosiation_score_array = np.empty(shape=(max_array_len,), dtype=object)
+#     assosiation_score_array[:] = [[] for _ in range(max_array_len)]
+
+#     assosiated_gene_array = np.empty(shape=(max_array_len,),dtype=object)
+#     assosiated_gene_array[:] = [[] for _ in range(max_array_len)]
+
+#     re_pair_index = 0
+
+#     # * The last index of the final promoter. Indexing from here will save ussom time later
+#     prev_prom_final_index = 0
+
+#     chromosome_name = ""
+#     promoter_genehancer_id = ""
+
+#     for promoter_row in promoter_genehancer_dataframe.itertuples():
+#         chromosome_name_index = promoter_genehancer_dataframe.columns.get_loc('#chrom') + 1
+
+#         # * Notfiy user whenever we start at a new chromosome
+#         if promoter_row[chromosome_name_index] != chromosome_name:
+#             print(f"Now analyzing genehancer data for chrom {promoter_row[chromosome_name_index]}")
+#         chromosome_name = promoter_row[chromosome_name_index]
+
+#         promoter_genehancer_id_index = promoter_genehancer_dataframe.columns.get_loc('genehancer_id') + 1
+#         if promoter_genehancer_id != promoter_row[promoter_genehancer_id_index]:
+#             prev_prom_final_index = re_pair_index
+#         promoter_genehancer_id = promoter_row[promoter_genehancer_id_index]
+
+    
+
+#         # * Get all assosiated genes of promoter
+#         connected_gene_column_index = promoter_genehancer_dataframe.columns.get_loc('connected_gene_id') + 1
+#         assosiation_score_column_index = promoter_genehancer_dataframe.columns.get_loc('connected_gene_score') + 1
+
+#         connected_gene_array = promoter_row[connected_gene_column_index]
+#         connected_assosiation_score_array = promoter_row[assosiation_score_column_index]
+
+#         # * Fetch promoter data
+#         promoter_start_loc_column_index = promoter_genehancer_dataframe.columns.get_loc('start') + 1
+#         promoter_end_loc_column_index = promoter_genehancer_dataframe.columns.get_loc('end') + 1
+
+#         promoter_start_loc = promoter_row[promoter_start_loc_column_index]
+#         promoter_end_loc = promoter_row[promoter_end_loc_column_index]
+
+#         promoter_start_bin = promoter_start_loc // resolution
+#         promoter_end_bin = promoter_end_loc // resolution
+
+#         # * Iterate through all assosiated genes
+#         for connected_gene_id, promoter_assosiation_score in zip(connected_gene_array, connected_assosiation_score_array):
+
+#             # * Reduce dataframe to same chromosome as promoter to reduce overall workloads
+#             reduced_enhancer_genehancer_dataframe = enhancer_genehancer_dataframe[enhancer_genehancer_dataframe['#chrom'] == chromosome_name]
+            
+#             # * Find all enhancers that are also assosiated with the gene
+#             assosiated_enhancers = reduced_enhancer_genehancer_dataframe[reduced_enhancer_genehancer_dataframe['connected_gene_id'].apply(lambda x: connected_gene_id in x)]
+
+#             for enhancer_row in assosiated_enhancers.itertuples():
+
+#                 # * Fetch data on assosiated enhancer
+#                 enhancer_genehancer_id_index = reduced_enhancer_genehancer_dataframe.columns.get_loc('genehancer_id') + 1
+#                 enhancer_genehancer_id = enhancer_row[enhancer_genehancer_id_index]
+
+#                 enhancer_connected_gene_column_index = assosiated_enhancers.columns.get_loc('connected_gene_id')
+#                 enhancer_assosiation_score_column_index = assosiated_enhancers.columns.get_loc('connected_gene_score')
+
+#                 enhancer_connected_gene_array = enhancer_row[enhancer_connected_gene_column_index + 1]
+#                 enhancer_assosiation_score_array = enhancer_row[enhancer_assosiation_score_column_index + 1]
+
+#                 enhancer_gene_index = np.where(enhancer_connected_gene_array == connected_gene_id)[0][0]
+#                 enhancer_assosiation_score = enhancer_assosiation_score_array[enhancer_gene_index]
+
+#                 enhancer_start_loc_column_index = reduced_enhancer_genehancer_dataframe.columns.get_loc('start') + 1
+#                 enhancer_end_loc_column_index = reduced_enhancer_genehancer_dataframe.columns.get_loc('end') + 1
+
+#                 enhancer_start_loc = enhancer_row[enhancer_start_loc_column_index]
+#                 enhancer_end_loc = enhancer_row[enhancer_end_loc_column_index]
+
+#                 enhancer_start_bin_index = enhancer_start_loc // resolution
+#                 enhancer_end_bin_index = enhancer_end_loc // resolution
+
+
+
+#                 # * Assosiation score between promoter and enhancer calculated as the average between the two
+#                 assosiation_score = (promoter_assosiation_score + enhancer_assosiation_score) / 2
+#                 # * Keep individual assosiation scores as well
+#                 assosiation_score = (assosiation_score, promoter_assosiation_score, enhancer_assosiation_score)
+
+                
+#                 # * If promoter-enhancer pair already exists in our arrays, we instead add the assosiated gene data and move on to next pair
+#                 # * Do NOT index re_pair_index
+#                 duplicate_pair = False
+#                 if promoter_genehancer_id in np.unique(promoter_genehancer_id_array) and enhancer_genehancer_id in np.unique(enhancer_genehancer_id_array):
+#                     for i, (p, e) in enumerate(zip(promoter_genehancer_id_array[prev_prom_final_index:re_pair_index],enhancer_genehancer_id_array[prev_prom_final_index:re_pair_index])):
+#                         if p == promoter_genehancer_id and e == enhancer_genehancer_id:
+#                             assosiated_gene_array[i].append(connected_gene_id)
+#                             assosiation_score_array[i].append(assosiation_score)
+#                             duplicate_pair = True
+#                             break
+
+#                 if duplicate_pair: continue
+
+#                 # * We have found promoter-enhancer pair. Add everything except pixels indexes to arrays.
+#                 chromosome_array[re_pair_index] = chromosome_name
+#                 promoter_genehancer_id_array[re_pair_index] = promoter_genehancer_id
+#                 enhancer_genehancer_id_array[re_pair_index] = enhancer_genehancer_id
+#                 promoter_start_position_array[re_pair_index] = promoter_start_loc
+#                 promoter_end_position_array[re_pair_index] = promoter_end_loc
+#                 enhancer_start_position_array[re_pair_index] = enhancer_start_loc
+#                 enhancer_end_position_array[re_pair_index] = enhancer_end_loc
+
+#                 assosiated_gene_array[re_pair_index].append(connected_gene_id)
+#                 assosiation_score_array[re_pair_index].append(assosiation_score)
+
+#                 # * Note bins that the promoters and enhancers are located in
+#                 for promoter_bin_index in range(promoter_start_bin, promoter_end_bin + 1):
+#                     for enhancer_bin_index in range(enhancer_start_bin_index, enhancer_end_bin_index + 1):
+#                         pixel_index = (promoter_bin_index,enhancer_bin_index)
+#                         pixel_index_array[re_pair_index].append(np.array([pixel_index[0],pixel_index[1]]))
+
+#                         # * Here we have every promoter-enhancer pair, their names, their start and end bins, 
+                
+#                 # * Done registering for pair
+#                 re_pair_index += 1
+
+#     # * Resize array to drop empty elements
+#     chromosome_array.resize((re_pair_index,))
+#     promoter_genehancer_id_array.resize((re_pair_index,))
+#     enhancer_genehancer_id_array.resize((re_pair_index,))
+#     promoter_start_position_array.resize((re_pair_index,))
+#     promoter_end_position_array.resize((re_pair_index,))
+#     enhancer_start_position_array.resize((re_pair_index,))
+#     enhancer_end_position_array.resize((re_pair_index,))
+#     pixel_index_array.resize((re_pair_index,))
+#     assosiated_gene_array.resize((re_pair_index,))
+#     assosiation_score_array.resize((re_pair_index,))
+
+#     temp_dictionary = {'chrom':chromosome_array, 
+#     'promoter_genehancer_id':promoter_genehancer_id_array, 'enhancer_genehancer_id':enhancer_genehancer_id_array,
+#     'promoter_start':promoter_start_position_array,'promoter_end':promoter_end_position_array,
+#     'enhancer_start':enhancer_start_position_array,'enhancer_end':enhancer_end_position_array,
+#     'pixels':pixel_index_array,
+#     'assosiated_genes':assosiated_gene_array, 'assosiation_scores':assosiation_score_array}
+
+#     new_dataframe = pd.DataFrame(temp_dictionary)
+
+#     if output_path: files.save_dataframe(new_dataframe,output_path,numpy_columns=['pixels','assosiated_genes','assosiation_scores'])
+
+#     return new_dataframe
+
+
 # # def note_interactions(  cool_file, 
 # #                         promoter_enhancer_dataframe : pd.core.frame.DataFrame, 
 # #                         chrom_name : str,
