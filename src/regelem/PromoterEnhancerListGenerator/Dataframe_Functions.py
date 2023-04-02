@@ -1,5 +1,4 @@
 import os
-import threading
 import warnings
 import cooler                   #type:ignore
 import matplotlib as mpl        #type:ignore
@@ -7,7 +6,6 @@ import matplotlib.pyplot as plt #type:ignore
 import numpy as np              #type:ignore
 import pandas as pd             #type:ignore
 import sys 
-import subprocess
 import concurrent.futures
 
 #from os.path import dirname, basename, isfile, join
@@ -19,44 +17,6 @@ from .File_Functions import *
 from .Functions import *
 from .General_Functions import *
 import files
-
-def extract_original_dataframe_from_cool(
-                        cool_file_path : str,
-                        chrom_name : str,
-                        start : int = None,
-                        end : int = None
-                        ) -> pd.core.frame.DataFrame:
-    cooler_object : cooler.api.Cooler = cooler.Cooler(cool_file_path)
-
-    cooler_2D_selector = cooler_object.matrix(balance=False, as_pixels=True, join=True)
-
-    cooler_dataframe = cooler_2D_selector.fetch((chrom_name,start,end))
-
-    return cooler_dataframe
-
-#TODO: Check how many times this is used
-def filter_cooler_to_regelement_dataframe(
-                        cool_file_path : str,
-                        bed_file_path : str,
-                        chrom_name : str, 
-                        resolution : int = False,
-                        start : int = None,
-                        end : int = None,
-                        max_memory : int = None) -> pd.core.frame.DataFrame:
-
-    
-    cooler_object : cooler.api.Cooler = cooler.Cooler(cool_file_path)
-    resolution = cooler_object.binsize
-
-    promoter_enhancer_dataframe = files.extract_pls_els_from_bed(bed_file_path)
-
-    print("Size of promoter_enhancer_dataframe:",
-            round(sys.getsizeof(promoter_enhancer_dataframe)/1048576,2),"MB", "or",round(sys.getsizeof(promoter_enhancer_dataframe),2)/1073741824,"GB")
-
-    mcool_interaction_dataframe = note_interactions(cooler_object,promoter_enhancer_dataframe, chrom_name, start = start, end = end, resolution = resolution)
-
-    return mcool_interaction_dataframe
-
 
 def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : int, end : int, prev_end : int) -> pd.DataFrame:
     """ Function for use in multiprocessing in note_promoter_enhancer_interactions_threaded. 
@@ -83,7 +43,7 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
 
     promoter_enhancer_dataframe = files.extract_pls_els_from_bed(bed_file_path)
 
-    new_dataframe : pd.core.frame.DataFrame = pd.DataFrame(columns = DATAFRAME_COLUMNS_INTERNAL)
+    noted_interactions_dataframe : pd.core.frame.DataFrame = pd.DataFrame(columns = DATAFRAME_COLUMNS_INTERNAL)
 
     print("Fetching dataframe related to", chrom_name, "starting at", start, "ending at", end)
     cooler_dataframe = cooler_2Dselector.fetch((chrom_name,start,end))
@@ -104,165 +64,99 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
         prom_start = row[2]
         prom_end = row[3]
         prom_name = row[4]
-        score = row[5] #!Unused
-        strand = row[6] #!Unused
         ## * Further indexes should not be relevant
 
-        prom_rounded_down = round_up_and_down(prom_start,resolution)[0]
-        prom_rounded_up = round_up_and_down(prom_end,resolution)[1]
+        ## * Find bin start and end
+        prom_start_rounded_down = round_up_and_down(prom_start,resolution)[0]
+        prom_end_rounded_up = round_up_and_down(prom_end,resolution)[1]
 
 
         ## * Getting all bins where the PLS is within the range of the first region of bin
-        promoter_interaction_dataframe1 = cooler_dataframe.loc[cooler_dataframe["start1"] >= prom_rounded_down].loc[cooler_dataframe["end1"] <= prom_rounded_up]
+        promoter_interaction_dataframe1 = cooler_dataframe.loc[cooler_dataframe["start1"] >= prom_start_rounded_down].loc[cooler_dataframe["end1"] <= prom_end_rounded_up]
         ## * Getting all bins where the PLS is within the range of the second region of bin
-        promoter_interaction_dataframe2 = cooler_dataframe.loc[cooler_dataframe["start2"] >= prom_rounded_down].loc[cooler_dataframe["end2"] <= prom_rounded_up]
+        promoter_interaction_dataframe2 = cooler_dataframe.loc[cooler_dataframe["start2"] >= prom_start_rounded_down].loc[cooler_dataframe["end2"] <= prom_end_rounded_up]
+
+        def _iterate_and_note(dataframe : pd.DataFrame, promoter_first : bool):
+            """Helper function
+                Iterate through all bins in dataframe that promoter interacted with, find all bins that contains an enhancer, add to new dataframe and return.
+
+            Args:
+                dataframe (pd.DataFrame): dataframe to iterate through
+                promoter_first (bool): if the promoter is in the first or second bin. 
+
+            """
+
+            new_dataframe : pd.core.frame.DataFrame = pd.DataFrame(columns = DATAFRAME_COLUMNS_INTERNAL)
 
 
-    ## * Iterating through all rows to find relevant enhancers that are in second region, while promoter is in first region
-        for row2 in promoter_interaction_dataframe1.itertuples():
-            enh_rounded_down = row2[5]
-            enh_rounded_up = row2[6]
-            count = row2[7]
+            if promoter_first:
+                promoter_start_col_index = 2
+                enhancer_start_col_index = 5
+            else:
+                promoter_start_col_index = 5
+                enhancer_start_col_index = 2
+            counter_index = 7
+
+            for iter_tuple in dataframe.itertuples():
+                prom_bin_start = iter_tuple[promoter_start_col_index]
+                prom_bin_end = iter_tuple[promoter_start_col_index + 1]
+                enh_bin_start = iter_tuple[enhancer_start_col_index]
+                enh_bin_end = iter_tuple[enhancer_start_col_index + 1]
+                count = iter_tuple[counter_index]
+
+                ## * If we are handling promoters and enhancers handled by previous process, continue
+                if prev_end:
+                    if prev_end > prom_end_rounded_up and prev_end > enh_bin_end :
+                        continue
+                
+                ## * Finding all enhancers that are within bins that interacted with the PLS bin
+                enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_bin_end].loc[enhancer_dataframe["chromEnd"] > enh_bin_start]
+
+                for enhancer_tuple in enhancer_hits_dataframe.itertuples():
+                    enh_start = enhancer_tuple[2]
+                    enh_end = enhancer_tuple[3]
+                    enh_name = enhancer_tuple[4]
+
+
+                    # * Skip if we already somehow found interaction for this enhancer and promoter pair
+                    # already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
+                    # if len(already_exists_dataframe):
+                    #     continue
+
+                    ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
+                    diff = 0
+                    if prom_end < enh_start: 
+                        diff = abs(enh_start - prom_end)
                         
-            ## * If we are handling promoters and enhancers handled by previous thread, continue
-            if prev_end:
-                if prev_end > prom_rounded_up and prev_end > enh_rounded_up :
-                    continue
-            
-            ## * Finding all enhancers that are within bins that interacted with the PLS' bin
-            enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_rounded_up].loc[enhancer_dataframe["chromEnd"] > enh_rounded_down]
+                    elif enh_end < prom_start:
+                        diff = abs(prom_start - enh_end)
 
+                    if diff > DISTANCE_LIMIT: 
+                        continue
 
-            ## * Iterate through all relevant enhancers and insert into new dataframe
-            for row3 in enhancer_hits_dataframe.itertuples():
-                enh_start = row3[2]
-                enh_end = row3[3]
-                enh_name = row3[4]
-                
-                # * Skip if we already found interaction for this enhancer and promoter pair
-                already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
-                if len(already_exists_dataframe):
-                    continue
+                    input_list = [[chrom_name, 
+                                    enh_start, enh_end, 
+                                    prom_start, prom_end,
+                                    enh_name, prom_name, 
+                                    enh_bin_start, enh_bin_end,
+                                    prom_bin_start, prom_bin_end,
+                                    count, -1]]
 
+                    input_df = pd.DataFrame(input_list, columns = Constants.DATAFRAME_COLUMNS_INTERNAL)
+                    new_dataframe = pd.concat([new_dataframe,input_df],ignore_index=True)
+            return new_dataframe
 
-                ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-                diff = 0
-                if prom_end < enh_start: 
-                    diff = abs(enh_start - prom_end)
-                    
-                elif enh_end < prom_start:
-                    diff = abs(prom_start - enh_end)
-
-                if diff > DISTANCE_LIMIT: 
-                    continue
-
-                input_enh_rounded_down = round_up_and_down(enh_start,resolution)[0]
-                input_enh_rounded_up = round_up_and_down(enh_end,resolution)[1]
-                input_prom_rounded_down = prom_rounded_down
-                input_prom_rounded_up = prom_rounded_up
-                input_count = count
-
-                # * If one of the elements span multiple bins, we take the bin with the highest count. If multiple, pick first.
-                if prom_rounded_up - prom_rounded_down > resolution or input_enh_rounded_up - input_enh_rounded_down > resolution: 
-                    possible_bins_dataframe = cooler_dataframe.query(f'start1 >= {prom_rounded_down} and end1 <= {prom_rounded_up} and start2 >= {enh_rounded_down} and end2 <= {enh_rounded_up}')
-                    
-                    if len(possible_bins_dataframe):
-                        
-                        highest_count = np.max(np.array(possible_bins_dataframe['count']))
-                        possible_bins_dataframe = possible_bins_dataframe.loc[possible_bins_dataframe['count'] == highest_count]
-                        input_prom_rounded_down = np.array(possible_bins_dataframe['start1'])[0]
-                        input_prom_rounded_up = np.array(possible_bins_dataframe['end1'])[0]
-                        input_enh_rounded_down = np.array(possible_bins_dataframe['start2'])[0]
-                        input_enh_rounded_up = np.array(possible_bins_dataframe['end2'])[0]
-                        input_count = np.array(possible_bins_dataframe['count'])[0]
-
-
-                ## * Last count is -1 as we currently dont have data to insert
-                internal_columns = DATAFRAME_COLUMNS_INTERNAL
-                ## * Make a list out of data to insert into new dataframe
-                ## * has to be a list of list
-                #TODO: Change column order so promoters are first, and enhancers second.
-                input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, input_enh_rounded_down, input_enh_rounded_up, 
-                            input_prom_rounded_down, input_prom_rounded_up, input_count, -1]]
-                
-
-                input_df = pd.DataFrame(input_list, columns = internal_columns)
-                new_dataframe = pd.concat([new_dataframe,input_df])
-
-        ## * Iterating through all rows to find relevant enhancers that are in first region, while promoter is in second region        
-        for row2 in promoter_interaction_dataframe2.itertuples():
-            enh_rounded_down = row2[2]
-            enh_rounded_up = row2[3]
-            count = row2[7]
-
-            
-            ## * If we are handling promoters and enhancers handled by previous thread, go to next promoter
-            if prev_end:
-                if prev_end > prom_rounded_up and prev_end > enh_rounded_up and prev_end == 6_000_000:
-                    continue
-
-            ## * Gettings all enhancers that are within bins that interacted with the PLS's bin
-            enhancer_hits_dataframe = enhancer_dataframe.loc[enhancer_dataframe["chromStart"] <= enh_rounded_up].loc[enhancer_dataframe["chromEnd"] > enh_rounded_down]
-
-            ## * Iterate through all relevant enhancers and insert into new dataframe
-            for row3 in enhancer_hits_dataframe.itertuples():
-                enh_start = row3[2]
-                enh_end = row3[3]
-                enh_name = row3[4]
-                internal_columns = DATAFRAME_COLUMNS_INTERNAL
-                
-                # * Skip if we already found interaction for this enhancer and promoter pair (Occurs on border between bins)
-                already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
-                if len(already_exists_dataframe):
-                    continue
-
-                ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
-                diff = 0
-                if prom_end < enh_start: 
-                    diff = abs(enh_start - prom_end)
-                    
-                elif enh_end < prom_start:
-                    diff = abs(prom_start - enh_end)
-
-                if diff > DISTANCE_LIMIT: 
-                    # print(f"Diff {diff} is higher than {DISTANCE_LIMIT}. Skipping.")
-                    continue
-
-                input_enh_rounded_down = round_up_and_down(enh_start,resolution)[0]
-                input_enh_rounded_up = round_up_and_down(enh_end,resolution)[1]
-                input_prom_rounded_down = prom_rounded_down
-                input_prom_rounded_up = prom_rounded_up
-                input_count = count
-
-                # * If one of the elements span multiple bins, we take the bin with the highest count. If multiple, pick first.
-                if prom_rounded_up - prom_rounded_down > resolution or input_enh_rounded_up - input_enh_rounded_down > resolution: 
-                    possible_bins_dataframe = cooler_dataframe.query(f'start1 >= {enh_rounded_down} and end1 <= {enh_rounded_up} and start2 >= {prom_rounded_down} and end2 <= {prom_rounded_up}')
-
-                    if len(possible_bins_dataframe):
-
-                        highest_count = np.max(np.array(possible_bins_dataframe['count']))
-                        possible_bins_dataframe = possible_bins_dataframe.loc[possible_bins_dataframe['count'] == highest_count]
-                        input_enh_rounded_down = np.array(possible_bins_dataframe['start1'])[0]
-                        input_enh_rounded_up = np.array(possible_bins_dataframe['end1'])[0]
-                        input_prom_rounded_down = np.array(possible_bins_dataframe['start2'])[0]
-                        input_prom_rounded_up = np.array(possible_bins_dataframe['end2'])[0]
-                        input_count = np.array(possible_bins_dataframe['count'])[0]
-                
-                ## * Make a list out of data to insert into new dataframe
-                ## * has to be a list of list
-                #TODO: Change column order so promoters are first, and enhancers second.
-                input_list = [[chrom_name, enh_start, enh_end, prom_start, prom_end, 
-                            enh_name, prom_name, input_enh_rounded_down, input_enh_rounded_up, 
-                            input_prom_rounded_down, input_prom_rounded_up, input_count, -1]]
-
-                input_df = pd.DataFrame(input_list, columns = internal_columns)
-                new_dataframe = pd.concat([new_dataframe,input_df])
+        noted_interactions_dataframe = pd.concat([noted_interactions_dataframe,_iterate_and_note(promoter_interaction_dataframe1, True)])
+        noted_interactions_dataframe = pd.concat([noted_interactions_dataframe,_iterate_and_note(promoter_interaction_dataframe2, False)])
+        
 
     print("Dropping duplicates and sorting dataframe.")
-    new_dataframe = new_dataframe.drop_duplicates().sort_values(by=['prom_start','bin2_start','enh_start','bin1_start']).reset_index(drop=True)
+    noted_interactions_dataframe = noted_interactions_dataframe.drop_duplicates().sort_values(by=['prom_start','bin2_start','enh_start','bin1_start']).reset_index(drop=True)
     print(f"Returning _note() thread with params start={start},end={end},prev_end={prev_end}")
-    return new_dataframe
+
+
+    return noted_interactions_dataframe
+
 
 def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
                                                 bed_file_path : str,
@@ -426,10 +320,10 @@ def note_promoter_enhancer_interactions_genomewide(cooler_file_path : str,
 
         chrom_wide_dataframe = pd.concat([chrom_wide_dataframe, returned_dataframe], ignore_index=True)
 
-        
+    chrom_wide_dataframe = chrom_wide_dataframe.drop_duplicates().sort_values(by=['prom_start','bin2_start','enh_start','bin1_start']).reset_index(drop=True)
     files.save_dataframe(chrom_wide_dataframe, output_path)
     return chrom_wide_dataframe
-    
+
 def check_if_column_sorted (dataframe : pd.DataFrame,
                             col_name : str):
         column_as_numpy = np.array(dataframe[col_name])
