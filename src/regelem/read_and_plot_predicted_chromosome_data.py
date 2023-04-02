@@ -56,7 +56,7 @@ def bins_within_diagonal(region_len : int, resolution : int, diag_len : int):
 def main():
     plot_average_regulatory_interaction()
 
-def get_output_file_names():
+def get_output_files_and_collect_to_dataframe():
     files = os.scandir(output_folder)
     dictionary = {"chrom_name":[],"resolution":[],"file_name":[]}
 
@@ -75,7 +75,6 @@ def get_output_file_names():
     return dataframe
 
 def plot_average_regulatory_interaction():
-    
     def _read_file_data(file_name : str):
         file_path = output_folder + file_name
 
@@ -84,10 +83,13 @@ def plot_average_regulatory_interaction():
         data = data.drop('Unnamed: 0',axis=1)
         return data
         
-    dataframe = get_output_file_names()
+    #* Collect all the data from each chromosome and resolution into a single dataframe
+    dataframe = get_output_files_and_collect_to_dataframe()
 
+    # * Get all chromosome names
     chrom_names = pd.unique(dataframe["chrom_name"])
 
+    # * Find out which resolutions are available for all chromosomes. If any are missing, we don't bother plotting them.
     resolutions_in_all_chroms = np.array([])
     for name in chrom_names:
         if resolutions_in_all_chroms.size == 0:
@@ -100,16 +102,17 @@ def plot_average_regulatory_interaction():
                 if res not in available_resolutions:
                     resolutions_in_all_chroms = resolutions_in_all_chroms[resolutions_in_all_chroms != res]
 
+    # * Remove any rows that have resoltuions that arent available for all chromosomes.
     reduced_dataframe = pd.DataFrame(columns=dataframe.columns)
-
     for res in resolutions_in_all_chroms:
         part_df = dataframe[dataframe["resolution"] == res]
         reduced_dataframe = pd.concat([reduced_dataframe,part_df])
     
+    # * Dictionary to turn into dataframe later
     chr_wide_dict = {"resolution":[],"max_count":[],"average_regulatory_count_per_bin":[], "average_regulatory_count_per_pe_bin":[]}
 
+    # * Collect data from all chromsomes for each resolution and make a dataframe
     for res in resolutions_in_all_chroms:
-
         average_regulatory_count_per_bin_total = 0
         average_regulatory_count_per_pe_bin_total = 0
         total_max_count = 0
@@ -143,10 +146,7 @@ def plot_average_regulatory_interaction():
     
     chr_wide_dataframe = pd.DataFrame(chr_wide_dict).sort_values(['resolution']).reset_index(drop=True)
     chr_wide_dataframe.drop(chr_wide_dataframe.tail(1).index,inplace=True)
-    #chr_wide_dataframe.drop
 
-    print(chr_wide_dataframe)
-    exit()
     coolerPlotter = plotter.CoolerPlotter()
 
     resolution = np.array(chr_wide_dataframe['resolution'])

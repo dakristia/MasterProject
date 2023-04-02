@@ -26,18 +26,13 @@ input_folder = "../../input/"
 output_folder = "../../output/"
 predicted_output_folder = f"{output_folder}predicted/"
 
-temp_files = "./temp/"
-
-def main():
-    predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions()
-
-    pass
-    
+temp_files = "./temp/"    
 
 def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
     """Naively predicts the average promoter and enhancer count for all chromosomes and resolutions. Does this by reading a bed file with PLS and ELS elements, 
     and counting any bin with a possible PLS and ELS interactions as a definit interaction.
     """
+    
 
     max_workers = 20
     chrom_sizes_file_path = input_folder + "hg38.chrom.sizes"
@@ -347,7 +342,7 @@ def calculate_promoter_enhancer_bins_multiprocess(bed_file_path : str,
             out_file_name = f'predicted_chromosome_data_{chrom_name}_{resolution}.csv'
 
         save_dataframe(dataframe=return_dataframe,
-                    file_path=out_file_name)
+                    file_path=out_file_name,numpy_columns=["list_of_counts","list_of_indexes"])
 
 
 
@@ -441,7 +436,6 @@ def _predict2(bed_file_path : str, chrom_name : str, resolution : int):
     bins = len(unique_dict)
     print(total, bins)
 
-if __name__ == "__main__":
-    #main()
-    _predict2("../../input/H1-hESC.7group.bed", "chr19", 100_000)
+
+    
 

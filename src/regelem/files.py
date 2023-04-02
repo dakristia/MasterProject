@@ -93,13 +93,6 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np
             # * Replace elements with filepath of array instead. 
             column_file_name_array = np.array([numpy_path for _ in column_array])
             dataframe[column_name] = column_file_name_array
-            
-            # for e in column:
-            #     array = e
-            #     array_file_path = f'{file_path}/numpies/{index}.np'
-            #     index += 1
-            #     np.save(array_file_path,array)
-            #     column_file_names = np.append(column_file_names,array_file_path)    
 
     dataframe.to_csv(file_path)
     
