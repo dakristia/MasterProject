@@ -4,6 +4,9 @@ import pandas as pd
 import os
 import sys
 import Constants
+import threading
+
+lock = threading.Lock()
 
 def create_dir_for_path(path : str):
     """Create folder along path to target if they don't already exist.
@@ -12,6 +15,7 @@ def create_dir_for_path(path : str):
     Args:
         path (str): path to create folders for.
     """
+
 
     path_delim = "/"
 
@@ -31,8 +35,13 @@ def create_dir_for_path(path : str):
             if not len(cur_path) == len(path) and not os.path.isdir(cur_path):
                     print("Creating directory at:", cur_path)
                     # * Create dir 
-                    os.mkdir(cur_path)
+                    try:
+                        os.mkdir(cur_path)
+                    except FileExistsError:
+                        pass
+
         cur_path += path_delim
+
 
 def save_matrix(matrix : np.ndarray, file_path : str):
     """Save numpy matrix to file.
@@ -54,6 +63,9 @@ def load_matrix(file_path: str) -> np.array:
     Returns:
         np.array: the loaded matrix
     """
+
+    lock.acquire()
+
     try:
         print("Retrieving matrix from:", file_path)
         matrix = np.load(file_path,allow_pickle=True) #! TODO: allow_pickle is a security issue
@@ -62,6 +74,8 @@ def load_matrix(file_path: str) -> np.array:
     except OSError:
         print("Failed to load matrix from:",file_path)
         return False
+
+    lock.release()
 
 def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np.array = False):
     """Save pandas dataframe to file
@@ -72,36 +86,40 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np
     """
     print("Saving dataframe to filename:", file_path)
 
-    # * Create path and save dataframe to csv
-    create_dir_for_path(file_path)
+    lock.acquire()
 
-    dataframe = dataframe.copy()
+    with lock:
+        # * Create path and save dataframe to csv
+        create_dir_for_path(file_path)
 
-    if numpy_columns:
-        index = 0
-        for column_name in numpy_columns:
-            print(f"Saving {column_name} as numpy array")
-            column = dataframe[column_name]
+        dataframe = dataframe.copy()
 
-            column_array = np.array([column])[0]
+        if numpy_columns:
+            index = 0
+            for column_name in numpy_columns:
+                print(f"Saving {column_name} as numpy array")
+                column = dataframe[column_name]
 
-            new_folder = os.path.splitext(file_path)[0]
-            numpy_path = f'{new_folder}/numpies/{column_name}.npy'
-            create_dir_for_path(numpy_path)
-            np.save(numpy_path,column_array)
+                column_array = np.array([column])[0]
 
-            # * Replace elements with filepath of array instead. 
-            column_file_name_array = np.array([numpy_path for _ in column_array])
-            dataframe[column_name] = column_file_name_array
+                new_folder = os.path.splitext(file_path)[0]
+                numpy_path = f'{new_folder}/numpies/{column_name}.npy'
+                create_dir_for_path(numpy_path)
+                np.save(numpy_path,column_array)
 
-    dataframe.to_csv(file_path)
-    
-    # * Check if file saved successfully
-    check_if_saved = os.path.isfile(file_path)
-    if not check_if_saved:
-        print(f'Failed to save dataframe to file: {file_path} \n{dataframe}')
-    else:
-        print(f'Successfully saved dataframe to file at {file_path} (or atleast the file now exists)')
+                # * Replace elements with filepath of array instead. 
+                column_file_name_array = np.array([numpy_path for _ in column_array])
+                dataframe[column_name] = column_file_name_array
+
+        dataframe.to_csv(file_path)
+        
+        # * Check if file saved successfully
+        check_if_saved = os.path.isfile(file_path)
+        if not check_if_saved:
+            print(f'Failed to save dataframe to file: {file_path} \n{dataframe}')
+        else:
+            print(f'Successfully saved dataframe to file at {file_path} (or atleast the file now exists)')
+
 
 def load_dataframe(filepath : str, numpy_columns : list = False, allow_pickle = False):
     """Attempts to load a dataframe from a file. Also drops "Unnamed: 0" column if present.
@@ -114,35 +132,40 @@ def load_dataframe(filepath : str, numpy_columns : list = False, allow_pickle = 
     Returns:
         pd.Dataframe: The loaded dataframe. False if file isn't found.
     """
-    try:
-        print("Retrieving dataframe from:", filepath)
-        dataframe = pd.read_csv(filepath,index_col=0)
-        if "Unnamed:0" in dataframe.columns: dataframe = dataframe.drop("Unnamed: 0", axis=1)
-        print("Successfully loaded dataframe from:", filepath)
+    lock.acquire()
 
-        index = 0
+    with lock:
 
-        if numpy_columns:
-            print("Numpy columns parameter True. Attempting to load numpy arrays")
-            for column_name in numpy_columns:
-                column = dataframe[column_name]
-                numpy_path = column[0]
-                print(f"Loading: {numpy_path}")
-                try:
-                    dataframe[column_name] = np.load(numpy_path, allow_pickle=allow_pickle)
-                except ValueError as e:
-                    e.__str__
-                    if str(e) == "Object arrays cannot be loaded when allow_pickle=False":
-                        print(f"ENCOUNTERED ERROR: {e}\n Set allow_pickle paramter to true if you trust the source.")
-                        return False
-                    else:
-                        print(e)
+        if allow_pickle:
+            print("WARNING: allow_pickel = True is a potential security risk. Make sure you trust your source. ")
 
-        return dataframe
+        try:
+            print("Retrieving dataframe from:", filepath)
+            dataframe = pd.read_csv(filepath,index_col=0)
+            if "Unnamed:0" in dataframe.columns: dataframe = dataframe.drop("Unnamed: 0", axis=1)
+            print("Successfully loaded dataframe from:", filepath)
 
-    except FileNotFoundError:
-        print("Failed to load dataframe from:", filepath)
-        return False
+            index = 0
+
+            if numpy_columns:
+                print("Numpy columns parameter True. Attempting to load numpy arrays")
+                for column_name in numpy_columns:
+                    column = dataframe[column_name]
+                    numpy_path = column[0]
+                    print(f"Loading: {numpy_path}")
+                    try:
+                        dataframe[column_name] = np.load(numpy_path, allow_pickle=allow_pickle)
+                    except ValueError as e:
+                        e.__str__
+                        if str(e) == "Object arrays cannot be loaded when allow_pickle=False":
+                            print(f"ENCOUNTERED ERROR: {e}\n Set allow_pickle paramter to true if you trust the source.")
+                            return False
+                        else:
+                            print(e)
+            return dataframe
+        except FileNotFoundError:
+            print("Failed to load dataframe from:", filepath)
+            return False
 
 def extract_pls_els_from_bed(bed_file_name: str, split : bool = False) -> pd.core.frame.DataFrame:
     """Read bed file and extract PLS and ELS row data.
