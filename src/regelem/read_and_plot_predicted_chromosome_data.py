@@ -171,7 +171,7 @@ def plot_average_regulatory_interaction():
     H1_res = np.concatenate((H1_dictionary_1000['resolution'],H1_dictionary_5000['resolution']))
     H1_max_count = np.concatenate((H1_dictionary_1000['max_count'],H1_dictionary_5000['max_count']))
     H1_average_regulatory_count_per_pe_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_pe_bin'],H1_dictionary_5000['average_regulatory_count_per_pe_bin']))
-    H1_average_regulator
+    
     y_count_per_bin = np.concatenate((H1_dictionary_1000['average_regulatory_count_per_bin'],H1_dictionary_5000['average_regulatory_count_per_bin']))
 
 
