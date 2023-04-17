@@ -17,8 +17,8 @@ def main():
 
     #* H1 files genome wide
 
-    dataframe1_file_name = f"{input_folder}dataframes/H1_binsize5000/genome_wide/5000_H1-hESC.7group.bed"
-    dataframe2_file_name = f"{input_folder}dataframes/H1_binsize1000/genome_wide/1000_H1-hESC.7group.bed"
+    dataframe1_file_name = f"{input_folder}dataframes/H1_binsize5000/genome_wide/5000_H1-hESC.7group.csv"
+    dataframe2_file_name = f"{input_folder}dataframes/H1_binsize1000/genome_wide/1000_H1-hESC.7group.csv"
     
     # # * Test Files
     # dataframe1_file_name = f"{input_folder}dataframes/H1_binsize5000/5000_H1-hESC.7group.bed.chrY.csv"
