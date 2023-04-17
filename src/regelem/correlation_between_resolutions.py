@@ -62,6 +62,9 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
             df2_coarsen_count = np.sum(df2_counts)
 
+
+            # * This shouldnt happen. If it does anyway, find out why
+            #! TODO: Remove
             if df2_coarsen_count > df1_count and df1_count > 2:
             
                 print(df1_count)
@@ -180,7 +183,6 @@ def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : 
     plt.show()
 
 
-#! Todo: Change box_plots to use lists of lists in stead of dataframes
 def box_plots(dataframes : list, labels : list):
 
     # * Fuck numpy arrays
