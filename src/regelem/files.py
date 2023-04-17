@@ -64,7 +64,6 @@ def load_matrix(file_path: str) -> np.array:
         np.array: the loaded matrix
     """
 
-    lock.acquire()
 
     try:
         print("Retrieving matrix from:", file_path)
@@ -75,7 +74,6 @@ def load_matrix(file_path: str) -> np.array:
         print("Failed to load matrix from:",file_path)
         return False
 
-    lock.release()
 
 def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np.array = False):
     """Save pandas dataframe to file
@@ -85,8 +83,6 @@ def save_dataframe(dataframe : pd.DataFrame, file_path : str, numpy_columns : np
         filepath (str): _description_
     """
     print("Saving dataframe to filename:", file_path)
-
-    lock.acquire()
 
     with lock:
         # * Create path and save dataframe to csv
@@ -132,7 +128,6 @@ def load_dataframe(filepath : str, numpy_columns : list = False, allow_pickle = 
     Returns:
         pd.Dataframe: The loaded dataframe. False if file isn't found.
     """
-    lock.acquire()
 
     with lock:
 
