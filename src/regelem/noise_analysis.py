@@ -5,10 +5,11 @@ import Constants
 import files
 import utils
 import plot_utils
+import matplotlib.pyplot as plt #type:ignore
 
 
 
-def funct(reg_dataframe_path : str, cooler_path : str, resolution : int, output_path : str = "./output/plots/noise_plot.png"):
+def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int, output_path : str = "./output/plots/noise_plot.png"):
 
     #TODO: Either make multiprocess or reduce the amount of cooler.fetch calls that are made.
 
@@ -16,7 +17,13 @@ def funct(reg_dataframe_path : str, cooler_path : str, resolution : int, output_
 
     cooler_object = cooler.Cooler(cooler_path)
 
-    temp_dict = {"chrom":[],"prom_name":[],"enh_name":[],"bin1_start":[],"bin1_end":[],"bin2_start":[],"bin2_end":[],"count":[],"noise":[]}
+    temp_dict = {"chrom":[],"prom_name":[],"enh_name":[],
+                "bin1_start":[],"bin1_end":[],
+                "bin2_start":[],"bin2_end":[],
+                "count":[],"noise":[],
+                "left":[],"upleft":[],"up":[], "upright":[],
+                "right":[],"downright":[],"down":[],"downleft":[],
+                "adjacent":[]}
 
     for row in reg_dataframe.itertuples():
         chrom_index = reg_dataframe.columns.get_loc("chrom") + 1
@@ -48,7 +55,31 @@ def funct(reg_dataframe_path : str, cooler_path : str, resolution : int, output_
         # * This line is accountable for 99% of used time
         submatrix = cooler_object.matrix(balance=False).fetch(string1,string2)
 
-        noise = np.sum(submatrix)
+        noise = np.sum(submatrix) - count
+
+        left = upleft = up = upright = right = downright = down = downleft = None
+
+        try: left = submatrix[1,0] 
+        except IndexError: pass
+        try: upleft = submatrix[0,0] 
+        except IndexError: pass
+        try: up = submatrix[0,1] 
+        except IndexError: pass
+        try: upright = submatrix[0,2] 
+        except IndexError: pass
+        try: right = submatrix[1,2] 
+        except IndexError: pass
+        try: downright = submatrix[2,2] 
+        except IndexError: pass
+        try: down = submatrix[2,1] 
+        except IndexError: pass
+        try: downleft = submatrix[2,0] 
+        except IndexError: pass
+
+        adjacent = 0
+        for i in [left, upleft, up, upright, right, downright, down, downleft]:
+            if i is not None:
+                adjacent = adjacent + 1
 
         # temp_dict = {"prom_name":[],"enh_name":[],"bin1_start":[],"bin1_end":[],"bin2_start":[],"bin2_end":[],"count":[],"noise":[]}
         temp_dict["chrom"].append(chrom)
@@ -60,6 +91,16 @@ def funct(reg_dataframe_path : str, cooler_path : str, resolution : int, output_
         temp_dict["bin2_end"].append(bin2_end)
         temp_dict["count"].append(count)
         temp_dict["noise"].append(noise)
+        temp_dict["left"].append(left)
+        temp_dict["upleft"].append(upleft)
+        temp_dict["up"].append(up)
+        temp_dict["upright"].append(upright)
+        temp_dict["right"].append(right)
+        temp_dict["downright"].append(downright)
+        temp_dict["down"].append(down)
+        temp_dict["downleft"].append(downleft)
+        temp_dict["adjacent"].append(adjacent)
+
 
     noise_dataframe = pd.DataFrame(temp_dict)
 
@@ -71,10 +112,12 @@ def funct(reg_dataframe_path : str, cooler_path : str, resolution : int, output_
 def plot_noise(noise_dataframe : pd.DataFrame, lesser_res_dataframe : pd.DataFrame, output_path = False):
     ""
 
+    #TODO: Move this function to test_noise_analysis.py
+
     noise_dataframe = pd.DataFrame(noise_dataframe).sort_values(by=["chrom","bin1_start","bin2_start"])
 
     # Remove duplicate pixels. This will remove some pairs, but we only care about specific pixels right now. 
-    duplicates = noise_dataframe.loc[:,["bin1_start","bin1_end","bin2_start","bin2_end"]].duplicated(keep="first",)
+    duplicates = noise_dataframe.loc[:,["chrom","bin1_start","bin1_end","bin2_start","bin2_end"]].duplicated(keep="first",)
     
     noise_dataframe = noise_dataframe[~duplicates].sort_values(by=["chrom","bin1_start","bin2_start"])
 
@@ -84,7 +127,7 @@ def plot_noise(noise_dataframe : pd.DataFrame, lesser_res_dataframe : pd.DataFra
     #count_and_noise_array = count_array + noise_array
     noise_count_ratio_array = noise_array / count_array
 
-    import matplotlib.pyplot as plt #type:ignore
+    
 
 
     # create a 2x2 grid of subplots
