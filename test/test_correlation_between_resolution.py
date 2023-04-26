@@ -44,7 +44,7 @@ def main():
     
     output_path = "./output/plots/correlation_H1_5000_1000.png"
 
-    df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsen_counts = correlation_between_resolutions.plot_correlation_between_resolution(dataframe1,dataframe2,res1= 5000,res2=1000)
+    df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsen_counts = correlation_between_resolutions.flatten_and_coarsen_data(dataframe1,dataframe2,res1= 5000,res2=1000)
 
     res1 = 5000
     res2 = 1000

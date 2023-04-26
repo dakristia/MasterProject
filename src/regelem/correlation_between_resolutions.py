@@ -83,10 +83,11 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
     return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsen_counts
 
-def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame,
-                                    res1 : int = False, res2 : int = False, workers : int = 5, cache = False, cache_path : str = "./flattened_counts_cache.npy"):
+def flatten_and_coarsen_data(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame,
+                                    res1 : int = False, res2 : int = False, workers : int = 5, 
+                                    cache = False, cache_path : str = "./flattened_counts_cache.npy"):
     
-        # * Extract name and extension from original path
+    # * Extract name and extension from original path
     file_name = os.path.splitext(cache_path)[0]
     file_extension = os.path.splitext(cache_path)[1]
 
@@ -154,10 +155,9 @@ def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : 
             returned_df1, returned_df2, returned_original_df1, returned_coarsened_df2 = f.result()
             
             df1_flatten_counts = np.append(df1_flatten_counts,returned_df1)
-            df2_flatten_counts = np.append(df2_flatten_counts,returned_df2) 
+            df2_flatten_counts = np.append(df2_flatten_counts,returned_df2)
             df1_original_counts = np.append(df1_original_counts,returned_original_df1)
-            df2_coarsened_counts = np.append(df2_coarsened_counts,returned_coarsened_df2) 
-
+            df2_coarsened_counts = np.append(df2_coarsened_counts,returned_coarsened_df2)
 
     np.save(df1_flatten_filepath,df1_flatten_counts)
     np.save(df2_flatten_filepath,df2_flatten_counts)
