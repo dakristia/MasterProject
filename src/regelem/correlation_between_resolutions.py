@@ -1,11 +1,29 @@
 import files
 import pandas as pd
 import numpy as np
+import os
 import concurrent.futures
 import plot_utils
 from matplotlib import pyplot as plt # type:ignore
 
+
 def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
+    """
+    Flattens dataframe1 and dataframe2. For each count in dataframe1, find correlating counts in dataframe2. 
+    For each of these counts, copy the single count from dataframe1. Resulting flatten counts will be longer than originals.
+
+    Also create a list of dataframe1's original counts, and create a matching array of dataframe2 by "coarsing" the 
+    counts to a lower resolution. E.g. collect all counts for bins that are within the range of bins from dataframe1.
+
+
+    Args:
+        dataframe1 (pd.DataFrame): _description_
+        dataframe2 (pd.DataFrame): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
     df1_flatten_counts = np.array([])
     df2_flatten_counts = np.array([])
     df1_original_counts = np.array([])
@@ -30,7 +48,7 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
             bins_in_range_dataframe = dataframe2.query(f'bin1_start >= {bin1_start} and bin1_end <= {bin1_end}') 
             bins_in_range_dataframe = bins_in_range_dataframe.query(f'bin2_start >= {bin2_start} and bin2_end <= {bin2_end}' )  
 
-            #  
+            
             handled_bins_dataframe = pd.concat((handled_bins_dataframe,bins_in_range_dataframe),ignore_index=True)
 
             df1_count_index = dataframe1.columns.get_loc('modle_count') + 1
@@ -38,10 +56,6 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
             df2_unique_bins = bins_in_range_dataframe.groupby(['bin1_start', 'bin1_end', 'bin2_start', 'bin2_end']).agg('first').reset_index()
 
-            # if len(df2_unique_bins) > 1:
-            #     print(bins_in_range_dataframe)
-            #     print(df2_unique_bins)
-            #     exit()
             # * Get all counts relating to the bin
             df2_counts = np.array(df2_unique_bins['modle_count'])
 
@@ -49,6 +63,8 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
             # * To calculate correlation, we need equal size arrays.
             # * Duplicate count in lower res array to match the number of found counts in the higher res array
             df1_counts = [df1_count for c in df2_counts]
+
+
 
             if len(df2_counts) == 0:
                 df1_counts = np.array([df1_count])
@@ -62,27 +78,51 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
             df2_coarsen_count = np.sum(df2_counts)
 
-
-            # * This shouldnt happen. If it does anyway, find out why
-            #! TODO: Remove
-            if df2_coarsen_count > df1_count and df1_count > 2:
-            
-                print(df1_count)
-                print(df2_coarsen_count)
-                print(df2_counts)
-                print(row)
-                print(bins_in_range_dataframe)
-                exit()
-
             df1_original_counts = np.append(df1_original_counts,df1_count)
             df2_coarsen_counts = np.append(df2_coarsen_counts,df2_coarsen_count)
 
-
     return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsen_counts
 
-def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame, label1: str, label2 : str, output_path : str, 
-                                    res1 : int = False, res2 : int = False, logScale : bool = False, scatter_plot : bool = True, box_plot : bool = True,
-                                    workers : int = 5):
+def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame,
+                                    res1 : int = False, res2 : int = False, workers : int = 5, cache = False, cache_path : str = "./flattened_counts_cache.npy"):
+    
+        # * Extract name and extension from original path
+    file_name = os.path.splitext(cache_path)[0]
+    file_extension = os.path.splitext(cache_path)[1]
+
+    # * Give filename to each array cache
+    df1_flatten_filepath = file_name + "df1flatten" + file_extension
+    df2_flatten_filepath = file_name + "df2flatten" + file_extension
+    df1_original_filepath = file_name + "df1original" + file_extension
+    df2_coarsened_filepath = file_name + "df2coarsen" + file_extension
+
+    # * Get cached data if it exists
+    if cache: 
+        all_file_found = True
+        try:
+            df1_flatten_counts = np.load(df1_flatten_filepath)
+        except FileNotFoundError:
+            print(f"No file found at {df1_flatten_filepath}. Proceeding as normal.")
+            all_file_found = False
+        try:
+            df2_flatten_counts = np.load(df2_flatten_filepath)
+        except FileNotFoundError:
+            print(f"No file found at {df2_flatten_filepath}. Proceeding as normal.")
+            all_file_found = False
+        try:
+            df1_original_counts = np.load(df1_original_filepath)
+        except FileNotFoundError:
+            print(f"No file found at {df1_original_filepath}. Proceeding as normal.")
+            all_file_found = False
+        try:
+            df2_coarsened_counts = np.load(df2_coarsened_filepath)
+        except FileNotFoundError:
+            print(f"No file found at {df2_coarsened_filepath}. Proceeding as normal.")
+            all_file_found = False
+
+        if all_file_found: return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsened_counts
+        #TODO: CHange so function only creates arrays that are missing. RIght now, function will create all arrays even if only one is missing.
+
     #TODO: Make this dynamic.
     if res2 > res1:
         raise Exception("res2 higher than res1. Excepted res1 to be higher than res2.")
@@ -107,12 +147,10 @@ def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : 
             chrom_dataframe2 = dataframe2[dataframe2['chrom'] == chrom]
 
             futures.append(executor.submit(_get_correlating_counts, chrom_dataframe1, chrom_dataframe2))
-
+        
         concurrent.futures.wait(futures)
 
         for f in futures:
-            print(f)
-            print("hjosada")
             returned_df1, returned_df2, returned_original_df1, returned_coarsened_df2 = f.result()
             
             df1_flatten_counts = np.append(df1_flatten_counts,returned_df1)
@@ -120,68 +158,13 @@ def plot_correlation_between_resolution(dataframe1 : pd.DataFrame, dataframe2 : 
             df1_original_counts = np.append(df1_original_counts,returned_original_df1)
             df2_coarsened_counts = np.append(df2_coarsened_counts,returned_coarsened_df2) 
 
-    if scatter_plot and box_plot: 
-        fig = plt.figure(figsize=(12, 7))
-        fig.subplots_adjust(wspace=0.5, hspace=0.5)
-        ax1 = plt.subplot2grid((2, 3), (0, 0))
-        ax2 = plt.subplot2grid((2, 3), (0, 1))
-        ax3 = plt.subplot2grid((2, 3), (1, 0))
-        ax4 = plt.subplot2grid((2, 3), (1, 1))
-        ax5 = plt.subplot2grid((2, 3), (0, 2), colspan=2, rowspan=2)
 
+    np.save(df1_flatten_filepath,df1_flatten_counts)
+    np.save(df2_flatten_filepath,df2_flatten_counts)
+    np.save(df1_original_filepath,df1_original_counts)
+    np.save(df2_coarsened_filepath,df2_coarsened_counts)
 
-    else: fig, ax1 = plt.subplots()
-
-    if logScale: plt.yscale('log'); plt.xscale('log') 
-
-    if scatter_plot:
-        
-        ax1.scatter(df1_flatten_counts, df2_flatten_counts, c=df1_flatten_counts, cmap = 'hsv')
-        ax1.set_xlabel(f'raw counts \n{res1} bp resolution')
-        ax1.set_ylabel(f'raw counts \n{res2} bp resolution')
-        ax1.set_title(f'A')
-
-        ## * With correlation line
-        ax2.scatter(df1_flatten_counts, df2_flatten_counts, c=df1_flatten_counts, cmap = 'hsv')
-        ax2.set_xlabel(f'raw counts \n{res1} bp resolution')
-        ax2.set_ylabel(f'raw counts \n{res2} bp resolution')
-        ax2.set_title(f'B')
-
-        min_val = np.min([df1_flatten_counts.min(), df2_flatten_counts.min()])
-        max_val = np.max([df1_flatten_counts.max(), df2_flatten_counts.max()])
-
-        perfect_correlation_x = np.linspace(min_val,max_val)
-        perfect_correlation_y = perfect_correlation_x
-        ax2.plot(perfect_correlation_x, perfect_correlation_y, linestyle='--', color='black',label="Perfect correlation")
-        
-        ## * Plot original df1 with coarsened df2
-        ax3.scatter(df1_original_counts, df2_coarsened_counts, c=df1_original_counts, cmap = 'hsv')
-        ax3.set_xlabel(f'raw counts \n{res1} bp resolution')
-        ax3.set_ylabel(f'raw counts \n{res2} bp resolution')
-        ax3.set_title(f'C')
-
-        ## * With correlation line 
-        ax4.scatter(df1_original_counts, df2_coarsened_counts, c=df1_original_counts, cmap = 'hsv')
-        ax4.set_xlabel(f'raw counts \n{res1} bp resolution')
-        ax4.set_ylabel(f'raw counts \n{res2} bp resolution')
-        ax4.set_title(f'D')
-
-        min_val = np.min([df1_original_counts.min(), df2_coarsened_counts.min()])
-        max_val = np.max([df1_original_counts.max(), df2_coarsened_counts.max()])
-
-        perfect_correlation_x = np.linspace(min_val,max_val)
-        perfect_correlation_y = perfect_correlation_x
-        ax4.plot(perfect_correlation_x, perfect_correlation_y, linestyle='--', color='black',label="Perfect correlation")
-        
-    if box_plot:
-        ax5.boxplot([df1_original_counts,df2_flatten_counts], labels=[label1,label2])
-        ax5.set_xlabel('Data Source')
-        ax5.set_ylabel('Raw Counts')
-        ax5.set_title(f'D')
-
-    plt.savefig(output_path)
-    plt.show()
-
+    return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsened_counts
 
 def box_plots(dataframes : list, labels : list):
 
