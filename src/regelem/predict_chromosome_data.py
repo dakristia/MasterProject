@@ -28,15 +28,15 @@ predicted_output_folder = f"{output_folder}predicted/"
 
 temp_files = "./temp/"    
 
-def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
+def calc_reg_pairs_allres(chrom_sizes_file_path : str, bed_file_path : str):
     """Naively predicts the average promoter and enhancer count for all chromosomes and resolutions. Does this by reading a bed file with PLS and ELS elements, 
     and counting any bin with a possible PLS and ELS interactions as a definit interaction.
     """
     
-
+    #TODO: Update test file
     max_workers = 20
-    chrom_sizes_file_path = input_folder + "hg38.chrom.sizes"
-    bed_file_path = input_folder + "H1-hESC.7group.bed"
+    # chrom_sizes_file_path = input_folder + "hg38.chrom.sizes"
+    # bed_file_path = input_folder + "H1-hESC.7group.bed"
 
     chrom_sizes_dataframe = pd.read_csv(chrom_sizes_file_path,delim_whitespace=True,header=None,names=["chrom","size"])
 
@@ -51,9 +51,6 @@ def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
     resolutions = np.array([50,100,500,1000,2000,5000,10000,25000,50000,100000,250000,500000,1000000,2500000])
 
 
-    print(f"Starting {max_workers} processes with function {calculate_promoter_enhancer_bins_multiprocess.__name__}")
-    #with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-    futures = []
     for row in chrom_sizes_dataframe.iloc[::-1].itertuples():
         chrom_name = row[1]
         chrom_size = row[2]
@@ -64,8 +61,7 @@ def predict_average_promoter_enhancer_count_for_all_chroms_and_resolutions():
                 print(f'File at path {out_file_name} already exists. Skipping.')
                 continue
             print(f'File {out_file_name} does NOT exist. Predict!')
-            calculate_promoter_enhancer_bins_multiprocess(bed_file_path,chrom_name,chrom_size,resolution,10,total_parts,out_file_name)
-        break #! Remove
+            calc_reg_pairs_multiprocess(bed_file_path,chrom_name,chrom_size,resolution,10,total_parts,out_file_name)
 
     print("Done.")
 
@@ -101,6 +97,7 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
 
     promoter_dataframe, enhancer_dataframe = extract_pls_els_from_bed(bed_file_path, split = True)
 
+    # * Filter dataframes to only include entries with the chrom we are looking at currently
     promoter_dataframe = promoter_dataframe[promoter_dataframe['chrom'] == chrom_name].reset_index(drop=True)
     enhancer_dataframe = enhancer_dataframe[enhancer_dataframe['chrom'] == chrom_name]
 
@@ -122,7 +119,6 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
         end_of_part = promoter_dataframe_size - 1
 
 
-    # * Filter dataframes to only include entries with the chrom we are looking at currently
     promoter_dataframe = promoter_dataframe[start_of_part:end_of_part + 1]
 
 
@@ -165,10 +161,10 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
             
             # * If further apart than 3Mbp, break. This assumes that the enhancer dataframe is sorted by enh_start
             if prom_end < enh_start:
-                if abs(enh_start - prom_end) > 3_000_000: 
+                if abs(enh_start - prom_end) > max_distance: 
                     break
             elif enh_end < prom_start:
-                if abs(enh_end - prom_start) > 3_000_000: 
+                if abs(enh_end - prom_start) > max_distance: 
                     continue
 
             # * Calculate how many bins the enhancer spans
@@ -193,8 +189,6 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
                     indexes = [prom_index, enh_index]
                     if enh_index < prom_index:
                         indexes = [enh_index, prom_index]
-
-                    #print(chrom_name,total_parts,part,lowest_prom_start,highest_prom_end,lowest_enh_start,highest_enh_start,"\n",prom_start,prom_end,enh_start,enh_end,relative_prom_index,relative_enh_index) #! remove
 
                     # * Convert to numpy array before comparison to avoid runtimewarning: invalid value encountered in long_scalars
                     indexes = np.array(indexes,dtype=coordinate_np_type)
@@ -254,15 +248,16 @@ def _predict(bed_file_path : str, chrom_name : str, resolution : int, total_part
     print(f"RETURNING {_predict.__name__} with promoter/enhancer bins in {chrom_name}, res {resolution}, part {part} of {total_parts}. Dataframe size: {len(dataframe)}")
     return dataframe
 
-def calculate_promoter_enhancer_bins_multiprocess(bed_file_path : str,
+def calc_reg_pairs_multiprocess(bed_file_path : str,
                                     chrom_name : str,
                                     chrom_size : int,
                                     resolution : int,
                                     workers : int,
                                     total_parts : int,
-                                    out_file_name : str = False,
+                                    output_path : str = False,
                                     ):    
-    """_summary_
+    """
+    Calculates the amount of possible promoter-enhancer pairs 
 
     Args:
         bed_file_path (str): _description_
@@ -338,11 +333,11 @@ def calculate_promoter_enhancer_bins_multiprocess(bed_file_path : str,
 
         return_dataframe = pd.DataFrame(dictionary)
 
-        if not out_file_name:
-            out_file_name = f'predicted_chromosome_data_{chrom_name}_{resolution}.csv'
+        if not output_path:
+            output_path = f'predicted_chromosome_data_{chrom_name}_{resolution}.csv'
 
         save_dataframe(dataframe=return_dataframe,
-                    file_path=out_file_name,numpy_columns=["list_of_counts","list_of_indexes"])
+                    file_path=output_path,numpy_columns=["list_of_counts","list_of_indexes"])
 
 
 

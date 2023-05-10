@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt #type:ignore
 
 
 
-def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int, output_path : str = "./output/plots/noise_plot.png"):
+def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int, output_path : str = "./output/dataframes/noise_dataframe.csv"):
 
     #TODO: Either make multiprocess or reduce the amount of cooler.fetch calls that are made.
 
     reg_dataframe = files.load_dataframe(reg_dataframe_path)
 
     cooler_object = cooler.Cooler(cooler_path)
+    selector = cooler_object.matrix(balance=False)
 
     temp_dict = {"chrom":[],"prom_name":[],"enh_name":[],
                 "bin1_start":[],"bin1_end":[],
@@ -53,7 +54,7 @@ def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int
         string2 = f"{chrom}:{fetch2_start}-{fetch2_end}"
 
         # * This line is accountable for 99% of used time
-        submatrix = cooler_object.matrix(balance=False).fetch(string1,string2)
+        submatrix = selector.fetch(string1,string2)
 
         noise = np.sum(submatrix) - count
 
@@ -75,6 +76,20 @@ def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int
         except IndexError: pass
         try: downleft = submatrix[2,0] 
         except IndexError: pass
+
+        # * If pixel is right next to diagonal (one pixel in cardinal directions), 
+        # * then it's mirrored duplicate would be counted as noise. Set this noise to 0
+        distance = abs(bin1_start - bin2_start)
+        if distance == resolution:
+            if bin1_start > bin2_start:
+                # * upright is duplicate, set to 0
+                upright = None
+            else:
+                # * downleft is duplicate, set to 0
+                downleft = None
+
+        
+
 
         adjacent = 0
         for i in [left, upleft, up, upright, right, downright, down, downleft]:
@@ -108,127 +123,7 @@ def register_noise(reg_dataframe_path : str, cooler_path : str, resolution : int
 
     return noise_dataframe
 
-
-def plot_noise(noise_dataframe : pd.DataFrame, lesser_res_dataframe : pd.DataFrame, output_path = False):
-    ""
-
-    #TODO: Move this function to test_noise_analysis.py
-
-    noise_dataframe = pd.DataFrame(noise_dataframe).sort_values(by=["chrom","bin1_start","bin2_start"])
-
-    # Remove duplicate pixels. This will remove some pairs, but we only care about specific pixels right now. 
-    duplicates = noise_dataframe.loc[:,["chrom","bin1_start","bin1_end","bin2_start","bin2_end"]].duplicated(keep="first",)
-    
-    noise_dataframe = noise_dataframe[~duplicates].sort_values(by=["chrom","bin1_start","bin2_start"])
-
-    chrom_array = np.array(noise_dataframe["chrom"])
-    count_array = np.array(noise_dataframe["count"])
-    noise_array = np.array(noise_dataframe["noise"])
-    #count_and_noise_array = count_array + noise_array
-    noise_count_ratio_array = noise_array / count_array
-
-    
-
-
-    # create a 2x2 grid of subplots
-    fig, axs = plt.subplots(2, 2, figsize=(12,10))
-
-    # create a set of unique labels
-    unique_labels = set(chrom_array)
-    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-    viridis = plt.cm.get_cmap('gist_rainbow', len(unique_labels))
-    color_choices = viridis(np.linspace(0, 1, 24))
-    #print(newcolors)
-    #exit()
-    #color_choices = ['#FFC300', '#FF5733', '#C70039', '#900C3F', '#581845', '#0074D9', '#7FDBFF', '#39CCCC', '#3D9970', '#2ECC40', '#FF851B', '#FF4136', '#B10DC9', '#85144b', '#111111', '#AAAAAA', '#DDDDDD', '#FFFFFF', '#F012BE', '#01FF70', '#FFDC00', '#7FDBFF', '#B10DC9', '#F012BE']
-    color_dict = {label: color_choices[i] for i, label in enumerate(unique_labels)}
-    #color_dict = {label: plt.cm.gist_rainbow(i) for i, label in enumerate(unique_labels)}
-    colors = [color_dict[label] for label in chrom_array]
-    label_int = np.unique(chrom_array, return_inverse=True)[1]
-    #exit()
-    # * Plot 1
-
-    for label in unique_labels:
-        #indice = chrom_array == label
-        indices = [i for i, x in enumerate(chrom_array) if x == label]
-        #print(indices)
-        # create a new list with the values from array2 at the indices found above
-        uq_count_array = [count_array[i] for i in indices]
-        uq_noise_array = [noise_array[i] for i in indices]
-        scatter = axs[0, 0].scatter(uq_count_array, uq_noise_array, alpha = 0.4, label=label ,color=color_dict[label], s = 20)
-
-
-    #scatter = axs[0, 0].scatter(count_array, noise_array, c=colors, s = 20)
-    axs[0, 0].set_title('Count vs noise per pair')
-    axs[0, 0].set_xlabel('Center frequency')
-    axs[0, 0].set_ylabel('Surrounding frequency')
-    plt.rcParams['legend.fontsize'] = 'small'
-    #plt.legend(loc='upper left', bbox_to_anchor=(0, 1), ncol=3)
-    axs[0, 0].legend(loc='upper center', columnspacing=0.2, bbox_to_anchor=(0.22, 1), ncol=3, prop={'size': 6})
-
-
-    # * Plot 2
-    box = axs[0, 1].boxplot([count_array, noise_array], labels=["Count","Noise"])
-    axs[0, 1].set_yscale('log')
-    #axs[0, 1].set_title()
-
-
-
-    #* Plot 3
-    # Label by chromsome as int range(0,24)
-    label_int = np.unique(chrom_array, return_inverse=True)[1]
-    count_sums = np.bincount(label_int, weights=count_array)
-    noise_sums = np.bincount(label_int, weights=noise_array)
-    noise_averages = count_sums/8
-
-
-
-    width = 0.25
-    x = np.arange(len(count_sums))
-
-    rects1 = axs[1, 0].bar(x - width, count_sums, width, label='Count')
-    rects2 = axs[1, 0].bar(x, noise_sums, width, label='Noise')
-    rects3 = axs[1, 0].bar(x + width, noise_averages, width, label='Mean Noise', color = 'purple')
-
-    # add labels for the x and y axes
-    axs[1, 0].set_xticks(x)
-    axs[1, 0].set_xticklabels(np.unique(chrom_array),rotation=45, ha='right')
-
-    axs[1, 0].set_yscale('log')
-    axs[1, 0].set_xlabel('Label')
-    axs[1, 0].set_ylabel('Sum')
-
-    plt.rcParams['legend.fontsize'] = 'small'
-    #plt.legend(loc='upper left', bbox_to_anchor=(0, 1), ncol=3)
-    #axs[0, 0].legend(loc='upper center', columnspacing=0.2, bbox_to_anchor=(0.22, 1), ncol=3, prop={'size': 6})
-
-    axs[1, 0].legend(prop={'size': 6})
-    # * Plot 4
-    ratio_sums = np.bincount(label_int, weights=noise_count_ratio_array)
-    count = np.bincount(label_int)
-    ratio_average = ratio_sums / count
-
-    width = 0.5
-
-    rects3 = axs[1, 1].bar(x, ratio_average, width, label='Noise per count', color="green")
-    axs[1, 1].set_xticks(x)
-    axs[1, 1].set_xticklabels(np.unique(chrom_array),rotation=45, ha='right')
-    axs[1, 1].set_yscale('log')
-    axs[1, 1].legend()
-
-    # Show the plot
-    plt.show()
-    if output_path: 
-        plt.savefig(output_path)
-        plot_utils.show_plot(output_path)
-
-
-    
-
-
-
 def generate_bias(cooler_file_path, output_path):
-
 
     # Load the cooler file
     c = cooler.Cooler(cooler_file_path)

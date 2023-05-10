@@ -1,14 +1,10 @@
 """Constants """
-# FILE_PATH_IN = './data/input/'
-# FILE_MODLE_COOL = FILE_PATH_IN + 'output5.cool'
-# FILE_PLS_ELS_BED = FILE_PATH_IN + 'PLS_pdELS.7group.bed'
-# FILE_EXTRUSION_BARRIER = FILE_PATH_IN + 'GRCh38_GM12878_barriers_RAD21_occupancy.bed'
-# FILE_GENE_ANNOTATION = FILE_PATH_IN + 'hg38.refGene.gtf'
 
-#FILE_PATH_OUT = './data/output/output.bedpe'
+
 OUTPUT_FOLDER = 'output_folder/'
 INPUT_FOLDER = ''
 
+# Chromosome sizes
 chrom_sizes = {
 "chr1":    248956422,
 "chr2":    242193529,
@@ -50,7 +46,7 @@ BED_BLOCKCOUNT = 9
 BED_BLOCKSIZES = 10
 BED_BLOCKSTARTS = 11
 
-# BEDPE constants
+# Index values for BEDPE
 BEDPE_CHROM = 0
 BEDPE_CHROM_START1 = 1
 BEDPE_CHROM_END1 = 2
@@ -83,21 +79,24 @@ ELS = "ELS"
 #The dataframe format we'll use within the list generator
 DATAFRAME_COLUMNS_INTERNAL = ["chrom", "enh_start", "enh_end", "prom_start", "prom_end", 
                             "enh_name", "prom_name", "bin1_start", "bin1_end", 
-                            "bin2_start", "bin2_end", "modle_count", "valid_count"]
+                            "bin2_start", "bin2_end", "count", "balanced"]
+
 DATAFRAME_COLUMNS_COOLER = ["chrom1", "start1", "end1", "chrom2", "start2", "end2", "count"]
+
 DATAFRAME_COLUMNS_BED = ["chrom","chromStart","chromEnd","name","score","strand"
                         ,"thickStart","thickEnd","itemRgb","type","complete"]
-#DATAFRAME_COLUMNS_BED = ["chrom1", "start1",
-#                         "end1", "chrom2", "start2", "end2", "count"]
+
 DATAFRAME_COLUMNS_PLSELS = ["chrom", "p_name", "p_start",
                             "p_end", "e_name", "e_start", "e_end", "count", "freq"]
+
 DATAFRAME_COLUMNS_PLSELS_OW = [
     "chrom", "regType", "regionname"] + DATAFRAME_COLUMNS_BED
+
 DATAFRAME_COLUMNS_BEDPE = ["chrom1", "start1", "end1", "chrom2",
                             "start2", "end2", "name", "score", "strand1", "strand2"]
+
 DATAFRAME_COLUMNS_STATISTICAL = ['distance','mincount','maxcount','averagecount','mediancount',
                                 'standarddeviation','totalcount','numberofcounts','allcounts']
 
 
-DISTANCE_LIMIT = 3_000_000 #3 Mega bp
-RESOLUTION_BP = 5000
+DISTANCE_LIMIT = 3_000_000 # Default distance limit for promoter-enhancer interaction

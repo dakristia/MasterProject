@@ -17,9 +17,10 @@ import dataframe_functions
 
 #! TODO: There is a LOT of room for optimisation here. Do this if you have nothing better to do (so never). 
 
-def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : int, end : int, prev_end : int) -> pd.DataFrame:
-    """ Function for use in multiprocessing in note_promoter_enhancer_interactions_threaded. 
-        Finds all promoter enhancer interactions on a chromosome within a region. 
+def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, 
+            start : int, end : int, prev_end : int, balanced : bool) -> pd.DataFrame:
+    """ Function for use in multiprocessing. 
+        Finds all promoter enhancer interactions within a region and returns a dataframe. 
 
     Args:
         cooler_file_path (str): path to cooler file
@@ -27,7 +28,9 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
         chrom_name (str): name of chromosome
         start (int): start of region to find promoter / enhancer region
         end (int): start of region to find promoter / enhancer region
-        prev_end (int): if both the promoter and enhancer are positioned below this value, don't register interaction
+        prev_end (int): if both the promoter and enhancer are positioned below this value, 
+                        don't register interaction. Use this if there is region overlap with 
+                        a different process.
 
     Returns:
         pd.Dataframe: Dataframe with promoter enhancer interactions.
@@ -36,7 +39,7 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
     print("Starting _note() process.")
 
     cooler_object = cooler.Cooler(cooler_file_path)
-    cooler_2Dselector = cooler_object.matrix(balance=False, as_pixels=True, join=True)
+    cooler_2Dselector = cooler_object.matrix(balance=balanced, as_pixels=True, join=True)
     chrom_size = cooler_object.chromsizes[chrom_name]
     resolution = cooler_object.binsize
 
@@ -96,6 +99,7 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                 promoter_start_col_index = 5
                 enhancer_start_col_index = 2
             counter_index = 7
+            if balanced: balanced_index = 8
 
             for iter_tuple in dataframe.itertuples():
                 prom_bin_start = iter_tuple[promoter_start_col_index]
@@ -103,6 +107,8 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                 enh_bin_start = iter_tuple[enhancer_start_col_index]
                 enh_bin_end = iter_tuple[enhancer_start_col_index + 1]
                 count = iter_tuple[counter_index]
+                if balanced: balanced_val = iter_tuple[balanced_index]
+                else: balanced_val = -1
 
                 ## * If we are handling promoters and enhancers handled by previous process, continue
                 if prev_end:
@@ -117,11 +123,6 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                     enh_end = enhancer_tuple[3]
                     enh_name = enhancer_tuple[4]
 
-
-                    # * Skip if we already somehow found interaction for this enhancer and promoter pair
-                    # already_exists_dataframe = new_dataframe.loc[(new_dataframe['enh_name'] == enh_name) & (new_dataframe['prom_name'] == prom_name)]#f'enh_name == {enh_name} and prom_name == {prom_name}')
-                    # if len(already_exists_dataframe):
-                    #     continue
 
                     ## * If distance between promoter/enhancer is longer than DISTANCE_LIMIT, skip
                     diff = 0
@@ -140,7 +141,7 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
                                     enh_name, prom_name, 
                                     enh_bin_start, enh_bin_end,
                                     prom_bin_start, prom_bin_end,
-                                    count, -1]]
+                                    count, balanced_val]]
 
                     input_df = pd.DataFrame(input_list, columns = Constants.DATAFRAME_COLUMNS_INTERNAL)
                     new_dataframe = pd.concat([new_dataframe,input_df],ignore_index=True)
@@ -158,13 +159,14 @@ def _note(cooler_file_path : str, bed_file_path :str, chrom_name :str, start : i
     return noted_interactions_dataframe
 
 
-def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
+def note_prom_enh_inter_multiprocess(cooler_file_path : str,
                                                 bed_file_path : str,
                                                 chrom_name : str,
                                                 start : int = False,
                                                 end : int = False,
                                                 max_distance : int = 3_000_000,
-                                                workers = 10) -> pd.core.frame.DataFrame:
+                                                workers = 10,
+                                                balanced : bool = True) -> pd.core.frame.DataFrame:
     """Creates a dataframe with all promoter and enhancer interactions and their contact frequency. Includes the regulatory element name,
     bins and count. 
     TODO: Finish documentation.
@@ -186,9 +188,9 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
     cooler_object = cooler.Cooler(cooler_file_path)
     chrom_size = cooler_object.chromsizes[chrom_name]
 
-    thread_ranges = np.empty(shape=(0,2),dtype=int)
+    region_ranges = np.empty(shape=(0,2),dtype=int)
 
-    if end: 
+    if start and end: 
         total_size = end - start
     else: 
         total_size = chrom_size
@@ -211,26 +213,26 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
         # * A region that a single thread will handle
         one_range = np.array([[region_start,region_end]])
         # * Collect all regions in an array
-        thread_ranges = np.append(thread_ranges,one_range,axis=0)
+        region_ranges = np.append(region_ranges,one_range,axis=0)
         covered_size = region_end
 
 
-    print(f'Attempting to start threads')
+    print(f'Attempting to start subprocesses')
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
 
         futures = []
         prev_end : int = False
-        for one_range in thread_ranges:
+        for one_range in region_ranges:
             this_start = one_range[0]
             this_end = one_range[1]
             print(f"Submitting one process with function {_note.__name__} and args {this_start}, {this_end}, {prev_end}.")
 
             futures.append(executor.submit(_note, cooler_file_path, bed_file_path, chrom_name, this_start, this_end,
-                            prev_end))
+                            prev_end, balanced))
             prev_end = this_end
 
         print(f'All threads submitted.')
-        print(f'Waiting for all threads to finish.')
+        print(f'Waiting for all subprocesses to finish.')
         print(f'Number of processes: {len(futures)}')
         concurrent.futures.wait(futures)
         print(f'All subprocesses done.')
@@ -252,25 +254,34 @@ def note_promoter_enhancer_interactions_multiprocess(cooler_file_path : str,
         return dataframe_to_return
 
 
-def note_promoter_enhancer_interactions_genomewide(cooler_file_path : str,
+def note_prom_enh_inter_gwide(cooler_file_path : str,
                                                 bed_file_path : str,
                                                 output_path : str,
+                                                balanced : bool = True,
                                                 cache_dataframe : bool = True, 
                                                 max_distance : int = 3_000_000,
                                                 workers = 10) -> pd.DataFrame:
-    """Calculate promoter / enhancer interaction statistics for all 
+    """Find all promoter-enhancer interactions for all chromosomes listed in a cooler file based on regulatory elements of a bed file.
 
     Args:
         cooler_file_path (str): path to .cool file.
         bed_file_path (str): path to .bed file with PLS and ELS elements. 
-        output_path (str): filepath and name to save output.
-        cache_dataframe (bool, optional): Wether to cache dataframes made underway or not. Can be useful if the process crashes. Defaults to True.
-        max_distance (int, optional): maximum distance at which to register contacts. Defaults to 3_000_000.
-        workers (int, optional): number of subprocess workers. Defaults to 10.
+        output_path (str): filepath to save output.
+        cache_dataframe (bool, optional): If true, cache smaller dataframes while processing. Can save time if the process is interrupted. Defaults to True.
+        max_distance (int, optional): maximum distance to register contacts. Defaults to 3_000_000.
+        workers (int, optional): number of subprocess workers to be used. Defaults to 10.
+        balanced (bool, optional): If the registered counts should be balanced or not. Defaults to True.
+
+    Raises:
+        ValueError: Incorrect output_path value. 
 
     Returns:
-        pd.DatFrame: dataframe with data for all 
+        pd.DataFrame: Dataframe containing all promoter-enhancer interactions.
     """
+    
+    if os.path.isfile(output_path):
+        print(f"File already exists at {output_path}. Attempting to load.")
+        return files.load_dataframe(output_path)
 
     cooler_object = cooler.Cooler(cooler_file_path)
     chrom_names = cooler_object.chromnames
@@ -281,24 +292,19 @@ def note_promoter_enhancer_interactions_genomewide(cooler_file_path : str,
 
     output_folder = ""
     if output_path_list[-1:] == "": 
-        raise NameError(f"Please specify a path to a filename. {output_path} is a directory.")
+        raise ValueError(f"Please specify a path to a filename. {output_path} is a directory.")
         output_folder = output_path
     else:
         output_folder = "/".join(output_path_list[:-1]) + "/"
     cache_folder = output_folder + "cache/"
     files.create_dir_for_path(cache_folder)
 
-    if os.path.isfile(output_path):
-        print(f"File already exists at {output_path}. Attempting to load.")
-        return files.load_dataframe(output_path)
 
 
     chrom_wide_dataframe = pd.DataFrame(columns=Constants.DATAFRAME_COLUMNS_INTERNAL)
 
     for name in chrom_names:
         print(f"Noting promoter and enhancer interactions for {name}.")
-        
-        
         
         dataframe_name = output_path_list[-1:] 
         dataframe_name = dataframe_name[0] + "." + name + ".csv" 
@@ -310,11 +316,12 @@ def note_promoter_enhancer_interactions_genomewide(cooler_file_path : str,
             print(f"Found cached dataframe at {dataframe_path}.")
             returned_dataframe = loaded_dataframe
         else:
-            returned_dataframe = note_promoter_enhancer_interactions_multiprocess(cooler_file_path =cooler_file_path, 
+            returned_dataframe = note_prom_enh_inter_multiprocess(cooler_file_path =cooler_file_path, 
                                                             bed_file_path = bed_file_path,
                                                             chrom_name= name,
                                                             max_distance = max_distance,
-                                                            workers = workers)
+                                                            workers = workers,
+                                                            balanced = balanced)
             
             if cache_dataframe: files.save_dataframe(returned_dataframe,dataframe_path)
 

@@ -5,7 +5,7 @@ import os
 import concurrent.futures
 import plot_utils
 from matplotlib import pyplot as plt # type:ignore
-
+    
 
 def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
     """
@@ -85,7 +85,7 @@ def _get_correlating_counts(dataframe1: pd.DataFrame, dataframe2: pd.DataFrame):
 
 def flatten_and_coarsen_data(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFrame,
                                     res1 : int = False, res2 : int = False, workers : int = 5, 
-                                    cache = False, cache_path : str = "./flattened_counts_cache.npy"):
+                                    cache = False, cache_path : str = "./cache/flattened_counts_cache.npy"):
     
     # * Extract name and extension from original path
     file_name = os.path.splitext(cache_path)[0]
@@ -121,7 +121,11 @@ def flatten_and_coarsen_data(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFram
             print(f"No file found at {df2_coarsened_filepath}. Proceeding as normal.")
             all_file_found = False
 
-        if all_file_found: return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsened_counts
+        if all_file_found: 
+            print(f"All cache files found. Returning.")
+            return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsened_counts
+        else:
+            print(f"At least one cache file missing.")
         #TODO: CHange so function only creates arrays that are missing. RIght now, function will create all arrays even if only one is missing.
 
     #TODO: Make this dynamic.
@@ -159,10 +163,11 @@ def flatten_and_coarsen_data(dataframe1 : pd.DataFrame, dataframe2 : pd.DataFram
             df1_original_counts = np.append(df1_original_counts,returned_original_df1)
             df2_coarsened_counts = np.append(df2_coarsened_counts,returned_coarsened_df2)
 
-    np.save(df1_flatten_filepath,df1_flatten_counts)
-    np.save(df2_flatten_filepath,df2_flatten_counts)
-    np.save(df1_original_filepath,df1_original_counts)
-    np.save(df2_coarsened_filepath,df2_coarsened_counts)
+    if cache:
+        np.save(df1_flatten_filepath,df1_flatten_counts)
+        np.save(df2_flatten_filepath,df2_flatten_counts)
+        np.save(df1_original_filepath,df1_original_counts)
+        np.save(df2_coarsened_filepath,df2_coarsened_counts)
 
     return df1_flatten_counts, df2_flatten_counts, df1_original_counts, df2_coarsened_counts
 
