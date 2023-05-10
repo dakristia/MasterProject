@@ -7,7 +7,7 @@ import time
 from line_profiler import LineProfiler #type:ignore
 
 sys.path.append('../src/regelem')
-import analyze_genehancer_data as agd
+import analyze_genehancer as agd
 import files
 
 

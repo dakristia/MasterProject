@@ -67,7 +67,7 @@ def main():
 
     
 
-    predict_chromosome_data.calculate_promoter_enhancer_bins_multiprocess("../../input/" + "H1-hESC.7group.bed", chrom_name, chrom_size, 5000, 10, 20, f"./output/predicted_regulatoryinteraction_{chrom_name}_{resolution}")
+    predict_chromosome_data.calc_reg_pairs_multiprocess("../../input/" + "H1-hESC.7group.bed", chrom_name, chrom_size, 5000, 10, 20, f"./output/predicted_regulatoryinteraction_{chrom_name}_{resolution}")
 
     
     

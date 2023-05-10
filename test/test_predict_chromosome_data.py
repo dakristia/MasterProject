@@ -50,9 +50,9 @@ def test_prediction_of_promoter_enhancer():
     # Split dataframe into one for promoters and one for enhancers
     promoter_dataframe, enhancer_dataframe = pelg.split_df_to_pls_els(promoter_enhancer_dataframe)
 
-    predict_chromosome_data.calculate_promoter_enhancer_bins_multiprocess(   promoter_dataframe=promoter_dataframe,enhancer_dataframe=enhancer_dataframe,
+    predict_chromosome_data.calc_reg_pairs_multiprocess(   promoter_dataframe=promoter_dataframe,enhancer_dataframe=enhancer_dataframe,
                                         chrom_name=chrom_name,chrom_size=chrom_size, resolution=resolution, 
-                                        out_file_name = f'./output/predicted_chromosome_data_test_{chrom_name}_{resolution}.csv')
+                                        output_path = f'./output/predicted_chromosome_data_test_{chrom_name}_{resolution}.csv')
 
     end_time = time.time() - start_time
 

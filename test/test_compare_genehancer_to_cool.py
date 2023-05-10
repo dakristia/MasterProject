@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0,"../src/regelem")
 import files
-import compare_genehancer_to_cooler as cgtc
+import cmp_ghc_cool as cgtc
 
 cooler_input = "../input/dataframes/H1_binsize5000/genome_wide/5000_H1-hESC.7group.bed"
 genehancer_input = "../input/dataframes/genehancer/GeneHancer_res5000.csv"
