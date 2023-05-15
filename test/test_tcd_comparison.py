@@ -1,3 +1,6 @@
+
+import sys
+sys.path.append('../src/regelem')
 import tcd_comparison
 
 def main():
